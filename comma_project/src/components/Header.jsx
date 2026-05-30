@@ -18,7 +18,7 @@
 //css는 Tailwind CSS로 작성한다.
 //Header.jsx의 배경색은 흰색으로 설정한다. Header.jsx는 화면의 상단에 고정한다.
 import React from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useNavigate, Link} from 'react-router-dom';
 const Header = () => {
     const navigate = useNavigate();
     return (
@@ -28,34 +28,33 @@ const Header = () => {
             
             {/* 1. 왼쪽 끝: 웹페이지 이름 */}
             {/* [수정] 색상 #1D2EE5는 text-[#1D2EE5]로 지정, 두꺼운 폰트(font-black) 적용 */}
-            <a 
-                href="/" 
+            <Link 
+                to="/" 
                 className="text-[#1D2EE5] text-3xl font-black no-underline whitespace-nowrap"
             >
                 쉼표,
-            </a>
+            </Link>
             
             {/* 2. 중앙: 메뉴 목록 */}
             {/* [수정] flex-1과 justify-center로 양끝 요소 사이의 정중앙에 배치, 간격은 gap-16(4rem) 적용 */}
             <nav className="flex-1 flex justify-center">
                 <ul className="flex list-none p-0 m-0 gap-16">
-                    <li><a href="/home" className="text-black font-bold no-underline text-lg">홈</a></li>
-                    <li><a href="/consolation" className="text-black font-bold no-underline text-lg">맞춤 위로</a></li>
-                    <li><a href="/secret_forest" className="text-black font-bold no-underline text-lg">익명 대나무숲</a></li>
-                    <li><a href="/secret_note" className="text-black font-bold no-underline text-lg">비밀 일기장</a></li>
-                    <li><a href="/mypage" className="text-black font-bold no-underline text-lg">마이페이지</a></li>
+                    <li><Link to="/" className="text-black font-bold no-underline text-lg">홈</Link></li>
+                    <li><Link to="/consolation" className="text-black font-bold no-underline text-lg">맞춤 위로</Link></li>
+                    <li><Link to="/secret_forest" className="text-black font-bold no-underline text-lg">익명 대나무숲</Link></li>
+                    <li><Link to="/secret_note" className="text-black font-bold no-underline text-lg">비밀 일기장</Link></li>
+                    <li><Link to="/mypage" className="text-black font-bold no-underline text-lg">마이페이지</Link></li>
                 </ul>
             </nav>
 
             {/* 3. 오른쪽 끝: 버튼 그룹 */}
             <div className="flex gap-6">
                 {/* 알림 소식 버튼: 배경 #F1B5B5, 글씨 #E71616 */}
-                <button 
-                    onClick={() => navigate("/alarm")}
-                    className="bg-[#F1B5B5] text-[#E71616] px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap"
-                >
-                    알림 소식
-                </button>
+                <Link to="/alarm">
+                    <button className="bg-[#F1B5B5] text-[#E71616] px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap">
+                        알림 소식
+                    </button>
+                </Link>
 
                 {/* 로그인 버튼: 배경 #9299E5, 글씨 #FFFFFF */}
                 <button 
