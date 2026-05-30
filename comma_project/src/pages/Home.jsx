@@ -23,7 +23,7 @@ const Home = () => {
   const navigate = useNavigate();
 
   return (
-    // 사진 속 레이아웃처럼 화면 전체 폭을 유연하게 감싸고, space-y-8로 세로 간격을 넓고 시원하게 벌려줍니다.
+    // 사진 속 레이아웃처럼 화면 전체 폭을 유연하게 감싸고, space-y-8로 세로 간격을 넓히기.
     <div className="w-full max-w-7xl mx-auto space-y-8 pt-10 pb-12 px-4">
       
       {/* [1] 메인 배너 영역: 둥근 모서리와 은은한 그림자만 사용 (테두리 선 아예 없음) */}
@@ -42,10 +42,10 @@ const Home = () => {
         </button>
       </div>
 
-      {/* [2] 중간 단: 날씨 카드와 실시간 키워드를 가로로 '한 줄에 배치'하고 사이 간격을 넓게(gap-6) 벌려줍니다. */}
+      {/* [2] 중간 단: 날씨 카드와 실시간 키워드를 가로로 '한 줄에 배치'하고 사이 간격 넓히기. */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* 왼쪽: 날씨 카드 (선 없이 깔끔한 #4D5EF6 배경) */}
+        {/* 왼쪽: 날씨 카드 (#4D5EF6 배경) */}
         <div className="w-full bg-[#4D5EF6] text-white rounded-2xl p-8 flex items-center justify-between shadow-sm">
           <div className="space-y-1">
             <p className="text-sm opacity-80">천안시 서북구</p>
@@ -69,7 +69,7 @@ const Home = () => {
 
       </div>
 
-      {/* [3] 하단 단: 3가지 핵심 기능 카드를 가로로 '한 줄에 3개 배치'하고 gap-6으로 여유롭게 띄워줍니다. */}
+      {/* [3] 하단 단: 3가지 핵심 기능 카드를 가로로 '한 줄에 3개 배치'하고 gap-6으로 띄우기. */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
         
         {/* 카드 1: 맞춤 위로 진단 (클릭 시 /consolation 이동) */}

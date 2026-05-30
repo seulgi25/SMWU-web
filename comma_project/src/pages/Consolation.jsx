@@ -34,7 +34,7 @@ const Consolation = () => {
     };
 
     return (
-        // [수정 1] 넓은 폭(max-w-5xl)을 사용하여 두 번째 사진처럼 큼직한 폼 박스를 만듭니다.
+        // 넓은 폭(max-w-5xl)을 사용하여 두 번째 사진처럼 큼직한 폼 박스를 만듭니다.
         <div className="w-full max-w-5xl mx-auto pt-16 pb-12 px-4">
             
             {/* 상단 문구 영역: 박스 바깥(위)에 위치시키고 왼쪽 정렬합니다. */}

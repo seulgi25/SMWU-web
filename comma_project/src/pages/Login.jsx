@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 
 const Login = () => {
   return (
-    // [수정 1] Home.jsx와 동일한 전체 폭(max-w-7xl)을 설정하여 헤더와 왼쪽 여백을 맞춥니다.
+    // Home.jsx와 동일한 전체 폭(max-w-7xl)을 설정하여 헤더와 왼쪽 여백을 맞추기.
     <div className="w-full max-w-7xl mx-auto pt-16 pb-12 px-4">
         
         {/* 상단 문구 영역: 전체 폭 안에서 왼쪽 정렬 유지 */}
