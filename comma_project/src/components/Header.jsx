@@ -18,16 +18,31 @@
 //css는 Tailwind CSS로 작성한다.
 //Header.jsx의 배경색은 흰색으로 설정한다. Header.jsx는 화면의 상단에 고정한다.
 import React from 'react';
-import {useNavigate, Link} from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+
 const Header = () => {
     const navigate = useNavigate();
+    const location = useLocation(); // 🌟 현재 브라우저의 주소를 가져옵니다.
+
+    // 🌟 현재 주소(pathname)와 메뉴의 경로(path)가 일치하는지 확인하는 함수
+    const isActive = (path) => {
+        if (path === '/') {
+            return location.pathname === '/'; // 메인 홈 화면은 완벽히 일치할 때만
+        }
+        return location.pathname.startsWith(path); // 상세 페이지(/secret_forest/1 등)에 들어가도 밑줄이 유지되도록 처리
+    };
+
+    // 🌟 활성화 여부에 따라 CSS 클래스를 다르게 뱉어내는 함수
+    const getMenuClass = (path) => {
+        return isActive(path)
+            ? "text-[#1D2EE5] font-bold no-underline text-lg border-b-[3px] border-[#1D2EE5] pb-1" // 활성화 됨 (파란색 글씨 + 파란색 밑줄)
+            : "text-black font-bold no-underline text-lg hover:text-[#1D2EE5] transition-colors pb-1 border-b-[3px] border-transparent"; // 비활성화 (검정 글씨 + 투명 밑줄)
+    };
+
     return (
-        // [수정] fixed 대신 sticky를 사용하여 본문 여백(pt-10)이 헤더 뒤로 파고들지 않도록 합니다.
-        // h-20(80px), bg-white, flex, 항목 정렬 및 그림자(shadow-sm)를 Tailwind로 처리했습니다.
         <header className="sticky top-0 left-0 w-full h-20 bg-white flex items-center justify-between px-12 box-border shadow-xs z-50">
             
             {/* 1. 왼쪽 끝: 웹페이지 이름 */}
-            {/* [수정] 색상 #1D2EE5는 text-[#1D2EE5]로 지정, 두꺼운 폰트(font-black) 적용 */}
             <Link 
                 to="/" 
                 className="text-[#1D2EE5] text-3xl font-black no-underline whitespace-nowrap"
@@ -36,14 +51,14 @@ const Header = () => {
             </Link>
             
             {/* 2. 중앙: 메뉴 목록 */}
-            {/* [수정] flex-1과 justify-center로 양끝 요소 사이의 정중앙에 배치, 간격은 gap-16(4rem) 적용 */}
             <nav className="flex-1 flex justify-center">
                 <ul className="flex list-none p-0 m-0 gap-16">
-                    <li><Link to="/" className="text-black font-bold no-underline text-lg">홈</Link></li>
-                    <li><Link to="/consolation" className="text-black font-bold no-underline text-lg">맞춤 위로</Link></li>
-                    <li><Link to="/secret_forest" className="text-black font-bold no-underline text-lg">익명 대나무숲</Link></li>
-                    <li><Link to="/secret_note" className="text-black font-bold no-underline text-lg">비밀 일기장</Link></li>
-                    <li><Link to="/mypage" className="text-black font-bold no-underline text-lg">마이페이지</Link></li>
+                    {/* 🌟 각 링크에 getMenuClass 함수를 적용하여 동적으로 스타일 변경 */}
+                    <li><Link to="/" className={getMenuClass("/")}>홈</Link></li>
+                    <li><Link to="/consolation" className={getMenuClass("/consolation")}>맞춤 위로</Link></li>
+                    <li><Link to="/secret_forest" className={getMenuClass("/secret_forest")}>익명 대나무숲</Link></li>
+                    <li><Link to="/secret_note" className={getMenuClass("/secret_note")}>비밀 일기장</Link></li>
+                    <li><Link to="/mypage" className={getMenuClass("/mypage")}>마이페이지</Link></li>
                 </ul>
             </nav>
 
@@ -51,7 +66,7 @@ const Header = () => {
             <div className="flex gap-6">
                 {/* 알림 소식 버튼: 배경 #F1B5B5, 글씨 #E71616 */}
                 <Link to="/alarm">
-                    <button className="bg-[#F1B5B5] text-[#E71616] px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap">
+                    <button className="bg-[#F1B5B5] text-[#E71616] px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-80 transition-all">
                         알림 소식
                     </button>
                 </Link>
@@ -59,7 +74,7 @@ const Header = () => {
                 {/* 로그인 버튼: 배경 #9299E5, 글씨 #FFFFFF */}
                 <button 
                     onClick={() => navigate("/login")}
-                    className="bg-[#9299E5] text-white px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap"
+                    className="bg-[#9299E5] text-white px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-90 transition-all"
                 >
                     로그인
                 </button>

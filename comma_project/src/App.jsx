@@ -8,7 +8,15 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Consolation from './pages/Consolation';
 import Consolation_result from './pages/Consolation_result';
-
+import Secret_forest_list from './pages/Secret_forest_list';
+import SecretForestWrite from './pages/Secret_forest_write';
+import SecretForestDetails from './pages/Secret_forest_details';
+import SecretNoteList from './pages/Secret_note_list';
+import SecretNoteWrite from './pages/Secret_note_write';
+import Alarm from './pages/Alarm';
+import Mypage from './pages/Mypage'
+import MypageSetting from './pages/Mypage_setting';
+  
 function App() {
   return (
     // [중요 1] 프로젝트 전체에 라우터 환경을 켜줍니다.
@@ -28,9 +36,15 @@ function App() {
             {/* 버튼을 눌렀을 때 흰 화면 방지용 예비 경로 세팅 */}
             <Route path="/consolation" element={<Consolation />} />
             <Route path="/consolation_result" element={<Consolation_result />} />
-            <Route path="/secret_forest" element={<Home />} />
-            <Route path="/secret_note" element={<Home />} />
+            <Route path="/secret_forest" element={<Secret_forest_list />} />
+            <Route path="/secret_forest_write" element={<SecretForestWrite />} />
+            <Route path="/secret_forest/:id" element={<SecretForestDetails />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/secret_note" element={<SecretNoteList />} />
+            <Route path="/secret_note_write" element={<SecretNoteWrite />} />
+            <Route path="/alarm" element={<Alarm />} />
+            <Route path="/mypage" element={<Mypage />} />
+            <Route path="/mypage_setting" element={<MypageSetting />} />
           </Routes>
         </main>
 
