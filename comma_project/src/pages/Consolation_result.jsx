@@ -51,7 +51,7 @@ const Consolation_result = () => {
     const [isSearching, setIsSearching] = useState(true); 
 
     const [loading, error] = useKakaoLoader({
-        appkey: process.env.REACT_APP_KAKAO_MAP_API_KEY, 
+        appkey: import.meta.env.VITE_KAKAO_MAP_API_KEY, 
         libraries: ["services"] 
     });
 
@@ -138,7 +138,7 @@ const Consolation_result = () => {
     };
 
     const fetchWeatherAndPlaces = async (lat, lng) => {
-        const openWeatherKey = process.env.REACT_APP_WEATHER_API_KEY;
+        const openWeatherKey = import.meta.env.VITE_WEATHER_API_KEY;
         let currentWeather = "Clear"; 
 
         try {

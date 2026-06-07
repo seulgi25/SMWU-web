@@ -37,7 +37,7 @@ const Home = () => {
   const [isLoadingTags, setIsLoadingTags] = useState(true);
 
   // 🌟 OpenWeather API 키 설정 (본인의 키를 입력해주세요)
-  const OPENWEATHER_API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
+  const OPENWEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
 
   useEffect(() => {
    // ==========================================
