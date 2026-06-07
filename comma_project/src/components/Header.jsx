@@ -17,71 +17,221 @@
 //'알림소식' 버튼과 '로그인' 버튼은 일정 간격을 두고 나란히 위치한다.
 //css는 Tailwind CSS로 작성한다.
 //Header.jsx의 배경색은 흰색으로 설정한다. Header.jsx는 화면의 상단에 고정한다.
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { auth, db } from '../firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const Header = () => {
-    const navigate = useNavigate();
-    const location = useLocation(); // 🌟 현재 브라우저의 주소를 가져옵니다.
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    // 🌟 현재 주소(pathname)와 메뉴의 경로(path)가 일치하는지 확인하는 함수
-    const isActive = (path) => {
-        if (path === '/') {
-            return location.pathname === '/'; // 메인 홈 화면은 완벽히 일치할 때만
-        }
-        return location.pathname.startsWith(path); // 상세 페이지(/secret_forest/1 등)에 들어가도 밑줄이 유지되도록 처리
-    };
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hasUnreadAlarm, setHasUnreadAlarm] = useState(false);
 
-    // 🌟 활성화 여부에 따라 CSS 클래스를 다르게 뱉어내는 함수
-    const getMenuClass = (path) => {
-        return isActive(path)
-            ? "text-[#1D2EE5] font-bold no-underline text-lg border-b-[3px] border-[#1D2EE5] pb-1" // 활성화 됨 (파란색 글씨 + 파란색 밑줄)
-            : "text-black font-bold no-underline text-lg hover:text-[#1D2EE5] transition-colors pb-1 border-b-[3px] border-transparent"; // 비활성화 (검정 글씨 + 투명 밑줄)
-    };
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+      } else {
+        setCurrentUser(null);
+        setHasUnreadAlarm(false);
+      }
+    });
 
-    return (
-        <header className="sticky top-0 left-0 w-full h-20 bg-white flex items-center justify-between px-12 box-border shadow-xs z-50">
-            
-            {/* 1. 왼쪽 끝: 웹페이지 이름 */}
-            <Link 
-                to="/" 
-                className="text-[#1D2EE5] text-3xl font-black no-underline whitespace-nowrap"
-            >
-                쉼표,
-            </Link>
-            
-            {/* 2. 중앙: 메뉴 목록 */}
-            <nav className="flex-1 flex justify-center">
-                <ul className="flex list-none p-0 m-0 gap-16">
-                    {/* 🌟 각 링크에 getMenuClass 함수를 적용하여 동적으로 스타일 변경 */}
-                    <li><Link to="/" className={getMenuClass("/")}>홈</Link></li>
-                    <li><Link to="/consolation" className={getMenuClass("/consolation")}>맞춤 위로</Link></li>
-                    <li><Link to="/secret_forest" className={getMenuClass("/secret_forest")}>익명 대나무숲</Link></li>
-                    <li><Link to="/secret_note" className={getMenuClass("/secret_note")}>비밀 일기장</Link></li>
-                    <li><Link to="/mypage" className={getMenuClass("/mypage")}>마이페이지</Link></li>
-                </ul>
-            </nav>
+    return () => unsubscribe();
+  }, []);
 
-            {/* 3. 오른쪽 끝: 버튼 그룹 */}
-            <div className="flex gap-6">
-                {/* 알림 소식 버튼: 배경 #F1B5B5, 글씨 #E71616 */}
-                <Link to="/alarm">
-                    <button className="bg-[#F1B5B5] text-[#E71616] px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-80 transition-all">
-                        알림 소식
-                    </button>
-                </Link>
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
-                {/* 로그인 버튼: 배경 #9299E5, 글씨 #FFFFFF */}
-                <button 
-                    onClick={() => navigate("/login")}
-                    className="bg-[#9299E5] text-white px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-90 transition-all"
-                >
-                    로그인
-                </button>
-            </div>
-            
-        </header>
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const q = query(
+      collection(db, 'alarms'),
+      where('uid', '==', currentUser.uid),
+      where('isRead', '==', false)
     );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setHasUnreadAlarm(!snapshot.empty);
+      },
+      (error) => {
+        console.error('읽지 않은 알림 확인 실패:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  const handleLogout = async () => {
+    const confirmLogout = window.confirm('로그아웃 하시겠습니까?');
+    if (confirmLogout) {
+      try {
+        await signOut(auth);
+        alert('성공적으로 로그아웃 되었습니다.');
+        navigate('/');
+        setIsMobileMenuOpen(false);
+      } catch (error) {
+        console.error('로그아웃 에러:', error);
+        alert('로그아웃 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  const isActive = (path) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  const getMenuClass = (path) => {
+    return isActive(path)
+      ? 'text-[#1D2EE5] font-bold no-underline text-lg md:border-b-[3px] border-[#1D2EE5] md:pb-1 block py-2 md:py-0'
+      : 'text-black font-bold no-underline text-lg hover:text-[#1D2EE5] transition-colors md:pb-1 md:border-b-[3px] border-transparent block py-2 md:py-0';
+  };
+
+  return (
+    <header className="sticky top-0 left-0 w-full bg-white shadow-xs z-50">
+      <div className="h-20 flex items-center justify-between px-6 md:px-12 box-border">
+        <Link
+          to="/"
+          className="text-[#1D2EE5] text-3xl font-black no-underline whitespace-nowrap"
+        >
+          쉼표,
+        </Link>
+
+        <nav className="hidden lg:flex flex-1 justify-center">
+          <ul className="flex list-none p-0 m-0 gap-8 xl:gap-16">
+            <li><Link to="/" className={getMenuClass('/')}>홈</Link></li>
+            <li><Link to="/consolation" className={getMenuClass('/consolation')}>맞춤 위로</Link></li>
+            <li><Link to="/secret_forest" className={getMenuClass('/secret_forest')}>익명 대나무숲</Link></li>
+            <li><Link to="/secret_note" className={getMenuClass('/secret_note')}>비밀 일기장</Link></li>
+            <li><Link to="/mypage" className={getMenuClass('/mypage')}>마이페이지</Link></li>
+          </ul>
+        </nav>
+
+        <div className="hidden lg:flex items-center gap-4 xl:gap-6">
+          <Link to="/alarm">
+            <button className="relative bg-[#F1B5B5] text-[#E71616] px-5 xl:px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-80 transition-all">
+              알림 소식
+              {hasUnreadAlarm && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white" />
+              )}
+            </button>
+          </Link>
+
+          {currentUser ? (
+            <div className="flex items-center gap-3 xl:gap-4">
+              <span className="font-bold text-gray-700 text-lg whitespace-nowrap">
+                <span className="text-[#1D2EE5]">
+                  {currentUser.displayName || '쉼표'}
+                </span>
+                님
+              </span>
+              <button
+                onClick={handleLogout}
+                className="bg-gray-100 text-gray-600 px-4 xl:px-5 py-2 rounded-md border border-gray-300 font-bold text-sm cursor-pointer whitespace-nowrap hover:bg-gray-200 transition-all"
+              >
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/login')}
+              className="bg-[#9299E5] text-white px-5 xl:px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-90 transition-all"
+            >
+              로그인
+            </button>
+          )}
+        </div>
+
+        <button
+          className="lg:hidden text-[#1D2EE5] p-2 focus:outline-none"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-8 w-8"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            {isMobileMenuOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
+      </div>
+
+      {isMobileMenuOpen && (
+        <div className="lg:hidden bg-white border-t border-gray-100 shadow-md absolute w-full left-0 top-20">
+          <nav className="flex flex-col px-6 py-4">
+            <ul className="flex flex-col list-none p-0 m-0 gap-2 mb-6">
+              <li><Link to="/" className={getMenuClass('/')}>홈</Link></li>
+              <li><Link to="/consolation" className={getMenuClass('/consolation')}>맞춤 위로</Link></li>
+              <li><Link to="/secret_forest" className={getMenuClass('/secret_forest')}>익명 대나무숲</Link></li>
+              <li><Link to="/secret_note" className={getMenuClass('/secret_note')}>비밀 일기장</Link></li>
+              <li><Link to="/mypage" className={getMenuClass('/mypage')}>마이페이지</Link></li>
+            </ul>
+
+            <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
+              {currentUser ? (
+                <div className="flex flex-col gap-3">
+                  <span className="font-bold text-gray-700 text-lg">
+                    <span className="text-[#1D2EE5]">
+                      {currentUser.displayName || '쉼표'}
+                    </span>
+                    님 환영합니다
+                  </span>
+
+                  <div className="flex gap-2">
+                    <Link to="/alarm" className="flex-1">
+                      <button className="relative w-full bg-[#F1B5B5] text-[#E71616] px-4 py-3 rounded-md font-bold text-base hover:bg-opacity-80 transition-all">
+                        알림 소식
+                        {hasUnreadAlarm && (
+                          <span className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white" />
+                        )}
+                      </button>
+                    </Link>
+
+                    <button
+                      onClick={handleLogout}
+                      className="flex-1 w-full bg-gray-100 text-gray-600 px-4 py-3 rounded-md border border-gray-300 font-bold text-base hover:bg-gray-200 transition-all"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Link to="/alarm" className="flex-1">
+                    <button className="w-full bg-[#F1B5B5] text-[#E71616] px-4 py-3 rounded-md font-bold text-base hover:bg-opacity-80 transition-all">
+                      알림 소식
+                    </button>
+                  </Link>
+
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="flex-1 w-full bg-[#9299E5] text-white px-4 py-3 rounded-md font-bold text-base hover:bg-opacity-90 transition-all"
+                  >
+                    로그인
+                  </button>
+                </div>
+              )}
+            </div>
+          </nav>
+        </div>
+      )}
+    </header>
+  );
 };
 
 export default Header;

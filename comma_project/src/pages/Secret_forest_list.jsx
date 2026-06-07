@@ -11,78 +11,99 @@
 //Secret_forest_write 페이지에서 작성한 글은 브라우저의 localStorage에 'forestPosts'라는 이름으로 저장되어 Secret_forest_list 페이지에서 볼 수 있도록 구현됩니다. (글 작성 페이지는 Secret_forest_write.jsx 파일로 만들어주세요.)
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+// 🌟 Firebase 도구 불러오기
+import { db } from '../firebase';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 
 const SecretForestList = () => {
-    // 화면에 보여줄 게시글 목록을 관리하는 State
     const [posts, setPosts] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // 화면이 처음 켜질 때 한 번만 실행되는 기능
     useEffect(() => {
-        // 1. 브라우저의 임시 기억 장치(localStorage)에서 'forestPosts'라는 이름의 데이터를 가져옵니다.
-        const savedPosts = JSON.parse(localStorage.getItem('forestPosts'));
+        const fetchPosts = async () => {
+            try {
+                const q = query(collection(db, "secret_forest_list"), orderBy("createdAt", "desc"));
+                const querySnapshot = await getDocs(q);
+                
+                const fetchedPosts = querySnapshot.docs.map(doc => ({
+                    id: doc.id, 
+                    ...doc.data()
+                }));
 
-        if (savedPosts && savedPosts.length > 0) {
-            // 2. 만약 누군가 작성해서 저장해둔 글이 있다면, 그걸 화면에 띄웁니다.
-            setPosts(savedPosts);
-        } else {
-            // 3. 아무것도 없다면(처음 접속했다면), 기본 샘플 글 5개를 띄우고 기억 장치에 저장합니다.
-            // (최신 글이 위로 와야 하므로 id가 큰 것을 위로 배치했습니다.)
-            const defaultPosts = [
-                { id: 5, title: '그냥 힘들어요 저에게 용기를 주세여', tag: '#기타' },
-                { id: 4, title: '15년지기 절친과 거리가 멀어졌어요...', tag: '#인간관계' },
-                { id: 3, title: '면접 이게 맞아..?', tag: '#면접' },
-                { id: 2, title: '과제 나만 힘들어?', tag: '#학업스트레스' },
-                { id: 1, title: '팀플 발표 당일 잠수 조원 대처법', tag: '#학업스트레스' },
-            ];
-            setPosts(defaultPosts);
-            localStorage.setItem('forestPosts', JSON.stringify(defaultPosts));
-        }
+                if (fetchedPosts.length === 0) {
+                    setPosts([
+                        { id: '1', title: '그냥 힘들어요 저에게 용기를 주세여', tag: '#기타' },
+                        { id: '2', title: '15년지기 절친과 거리가 멀어졌어요...', tag: '#인간관계' },
+                        { id: '3', title: '면접 이게 맞아..?', tag: '#면접' },
+                        { id: '4', title: '과제 나만 힘들어?', tag: '#학업스트레스' },
+                        { id: '5', title: '팀플 발표 당일 잠수 조원 대처법', tag: '#학업스트레스' },
+                    ]);
+                } else {
+                    setPosts(fetchedPosts);
+                }
+            } catch (error) {
+                console.error("게시글 불러오기 실패:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchPosts();
     }, []);
 
     return (
-        <div className="w-full max-w-7xl mx-auto pt-16 pb-12 px-4">
+        // 🌟 전체 상하 여백 모바일에 맞게 조절
+        <div className="w-full max-w-7xl mx-auto pt-10 md:pt-16 pb-12 px-4 md:px-6">
             
-            {/* 상단 문구 영역 */}
-            <div className="text-left mb-10">
-                <h1 className="text-4xl font-bold text-[#1D2EE5] mb-2">익명 대나무숲</h1>
-                <p className="text-gray-500 text-lg">서로 위로받고 서로의 온기를 나누는 대나무숲입니다.</p>
+            <div className="text-left mb-6 md:mb-10 px-1">
+                <h1 className="text-3xl md:text-4xl font-bold text-[#1D2EE5] mb-2">익명 대나무숲</h1>
+                <p className="text-gray-500 text-sm md:text-lg">서로 위로받고 서로의 온기를 나누는 대나무숲입니다.</p>
             </div>
 
-            {/* 글 목록 영역 */}
-            <div className="flex flex-col gap-3">
-                {/* posts 배열에 있는 글들을 최신순(위에서부터)으로 화면에 그려줍니다. */}
-                {posts.map((post) => (
-                    <Link 
-                        key={post.id} 
-                        to={`/secret_forest/${post.id}`} 
-                        className="flex items-center justify-between p-5 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 hover:border-[#3D46AA] transition-all cursor-pointer"
-                    >
-                        <span className="text-lg md:text-xl font-bold text-gray-900">
-                            {post.title}
-                        </span>
-                        <span className="px-4 py-1.5 bg-gray-200 text-gray-700 rounded-full text-sm font-bold whitespace-nowrap">
-                            {post.tag}
-                        </span>
-                    </Link>
-                ))}
+            {/* 🌟 목록 사이의 간격 조절 */}
+            <div className="flex flex-col gap-2.5 md:gap-3">
+                {isLoading ? (
+                    <div className="py-10 text-center font-bold text-gray-500 text-sm md:text-base">대나무숲의 이야기를 불러오는 중입니다...</div>
+                ) : (
+                    posts.map((post) => (
+                        <Link 
+                            key={post.id} 
+                            to={`/secret_forest/${post.id}`} 
+                            // 🌟 박스 안쪽 여백 다이어트 (p-4)
+                            className="flex items-center justify-between p-4 md:p-5 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 hover:border-[#3D46AA] transition-all cursor-pointer"
+                        >
+                            {/* 🌟 핵심 해결 포인트: flex-1과 min-w-0을 주어 제목이 길어져도 레이아웃을 부수지 않게 함 */}
+                            <div className="flex-1 min-w-0 mr-3 md:mr-4">
+                                <span className="block text-base md:text-xl font-bold text-gray-900 truncate">
+                                    {post.title}
+                                </span>
+                            </div>
+
+                            {/* 🌟 태그 크기 다이어트 및 shrink-0 (절대 찌그러지지 않게 고정) */}
+                            <span className="shrink-0 px-3 py-1.5 md:px-4 md:py-1.5 bg-gray-200 text-gray-700 rounded-full text-xs md:text-sm font-bold whitespace-nowrap">
+                                {post.tag}
+                            </span>
+                        </Link>
+                    ))
+                )}
             </div>
 
-            {/* 글 작성 버튼 */}
-            <div className="mt-8 flex justify-start">
-                {/* [수정됨] Secret_forest_write 페이지로 이동하도록 경로를 맞췄습니다. */}
+            {/* 하단 글 작성 버튼 다이어트 */}
+            {/* 기존의 px-8 py-3.5에서 px-6 py-2.5로 줄이고, 폰트도 조금 축소 */}
+            <div className="mt-8 flex justify-start pl-1">
                 <Link 
                     to="/secret_forest_write" 
-                    className="bg-[#3D46AA] text-white px-8 py-3.5 rounded-xl font-bold text-lg hover:bg-opacity-90 transition-all shadow-sm"
+                    className="bg-[#3D46AA] text-white px-5 md:px-6 py-2.5 md:py-3 rounded-lg font-bold text-sm md:text-base hover:bg-opacity-90 transition-all shadow-sm"
                 >
                     글 작성하기
                 </Link>
             </div>
 
-            {/* 페이지네이션 */}
-            <div className="mt-10 flex justify-center items-center gap-2">
-                <button className="w-10 h-10 rounded-full font-bold bg-[#1D2EE5] text-white">1</button>
-                <button className="w-10 h-10 rounded-full font-bold text-gray-500 hover:bg-gray-100">2</button>
-                <button className="w-10 h-10 rounded-full font-bold text-gray-500 hover:bg-gray-100">3</button>
+            {/* 하단 페이지네이션 다이어트 */}
+            <div className="mt-10 flex justify-center items-center gap-1.5 md:gap-2">
+                <button className="w-8 h-8 md:w-10 md:h-10 rounded-full font-bold bg-[#1D2EE5] text-white text-sm md:text-base">1</button>
+                <button className="w-8 h-8 md:w-10 md:h-10 rounded-full font-bold text-gray-500 hover:bg-gray-100 text-sm md:text-base">2</button>
+                <button className="w-8 h-8 md:w-10 md:h-10 rounded-full font-bold text-gray-500 hover:bg-gray-100 text-sm md:text-base">3</button>
             </div>
 
         </div>
