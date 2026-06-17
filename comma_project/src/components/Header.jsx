@@ -1,27 +1,38 @@
-//상단 고정 네비게이션 바(GNB) 만들기->Header
-//GNB는 웹페이지의 최상단에 고정되어 항상 보이는 네비게이션 바입니다.
-//GNB에는 웹페이지의 이름과 주요 메뉴 목록이 포함되어 있습니다.
-//GNB는 웹페이지의 모든 페이지에서 동일하게 나타납니다.
-//GNB는 한 줄로 나열한다. 메뉴 목록은 웹페이지 이름 옆에 위치한다.
-//GNB 가장 왼쪽에 '쉼표,'라는 웹페이지 이름이 쓰여있다.
-//'쉼표,' 글씨는 찐한 '#1D2EE5' 색상을 사용한다.
-//'쉼표,' 글씨는 웹페이지 이름을 나타내며, 클릭하면 웹페이지가 새로 로딩된다.
-//웹페이지 이름 옆에는 '홈', '맞춤 위로', '익명 대나무숲', '비밀 일기장', '마이페이지' 목록이 있다.
-//목록은 일정 간격을 두고 쉼표 제목과 함께 한 줄로 나열한다.
-//이 목록은 각각 '홈'은 './pages/Home', './pages/Consolation', './pages/Secret_forest', './pages/Secret_note', './pages/Mypage'로 이동한다.
-//'쉼표' 웹페이지 이름을 누르면 다시 웹페이지가 새로 로딩이 된다.
-//'마이페이지' 목록 옆에는 알림 소식 버튼과 로그인 버튼이 존재한다.
-//'알림 소식' 버튼을 누르면 './pages/Alarm'으로, '로그인'버튼을 누르면 './pages/Login'으로 각각 이동한다.
-//'알림 소식' 버튼은 '#F1B5B5' 배경에 '#E71616' 글씨로 쓴다.
-//'로그인' 버튼은 '#9299E5' 배경에 '#FFFFFF' 글씨를 쓴다.
-//'알림소식' 버튼과 '로그인' 버튼은 일정 간격을 두고 나란히 위치한다.
-//css는 Tailwind CSS로 작성한다.
-//Header.jsx의 배경색은 흰색으로 설정한다. Header.jsx는 화면의 상단에 고정한다.
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { auth, db } from '../firebase';
+/**
+ * Header.jsx
+ *
+ * 쉼표 웹서비스의 공통 상단 네비게이션 바(GNB) 컴포넌트입니다.
+ * 모든 페이지 상단에서 홈, 맞춤 위로, 익명 대나무숲, 비밀 일기장,
+ * 마이페이지, 알림, 로그인/로그아웃 기능으로 이동할 수 있게 합니다.
+ *
+ * Firebase Auth를 통해 현재 로그인한 사용자를 확인하고,
+ * Firestore의 alarms 컬렉션을 실시간으로 감지하여
+ * 읽지 않은 알림이 있을 경우 알림 버튼에 표시합니다.
+ */
+
+import React, { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+
+// 데스크톱 메뉴와 모바일 메뉴에서 공통으로 사용할 네비게이션 목록
+const NAV_ITEMS = [
+  { label: '홈', path: '/', end: true },
+  { label: '맞춤 위로', path: '/consolation' },
+  { label: '익명 대나무숲', path: '/secret_forest' },
+  { label: '비밀 일기장', path: '/secret_note' },
+  { label: '마이페이지', path: '/mypage' },
+];
+
+// 현재 접속 중인 페이지에 따라 메뉴 스타일을 다르게 적용(반응형웹)
+const getMenuClass = ({ isActive }) =>
+  [
+    'block py-2 md:py-0 md:pb-1 md:border-b-[3px] no-underline text-lg font-bold transition-colors',
+    isActive
+      ? 'text-[#1D2EE5] border-[#1D2EE5]'
+      : 'text-black border-transparent hover:text-[#1D2EE5]',
+  ].join(' ');
 
 const Header = () => {
   const navigate = useNavigate();
@@ -31,34 +42,40 @@ const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadAlarm, setHasUnreadAlarm] = useState(false);
 
+  const userId = currentUser?.uid;
+  const displayName = currentUser?.displayName || '쉼표';
+
+  // Firebase Auth의 로그인 상태 변화를 감지하여 Header UI를 갱신
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-      } else {
-        setCurrentUser(null);
+      setCurrentUser(user);
+
+      // 로그아웃 상태에서는 읽지 않은 알림 표시를 초기화
+      if (!user) {
         setHasUnreadAlarm(false);
       }
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
+  // 모바일 메뉴가 열린 상태에서 다른 페이지로 이동하면 메뉴를 자동으로 닫음
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
 
+  // 로그인한 사용자의 읽지 않은 알림 여부를 Firestore에서 실시간으로 확인
   useEffect(() => {
-    if (!currentUser) return;
+    if (!userId) return undefined;
 
-    const q = query(
+    const unreadAlarmQuery = query(
       collection(db, 'alarms'),
-      where('uid', '==', currentUser.uid),
+      where('uid', '==', userId),
       where('isRead', '==', false)
     );
 
     const unsubscribe = onSnapshot(
-      q,
+      unreadAlarmQuery,
       (snapshot) => {
         setHasUnreadAlarm(!snapshot.empty);
       },
@@ -67,34 +84,47 @@ const Header = () => {
       }
     );
 
-    return () => unsubscribe();
-  }, [currentUser]);
+    return unsubscribe;
+  }, [userId]);
 
+  // 로그아웃 버튼 클릭 시 사용자 확인 후 Firebase 로그아웃 처리
   const handleLogout = async () => {
     const confirmLogout = window.confirm('로그아웃 하시겠습니까?');
-    if (confirmLogout) {
-      try {
-        await signOut(auth);
-        alert('성공적으로 로그아웃 되었습니다.');
-        navigate('/');
-        setIsMobileMenuOpen(false);
-      } catch (error) {
-        console.error('로그아웃 에러:', error);
-        alert('로그아웃 중 오류가 발생했습니다.');
-      }
+
+    if (!confirmLogout) return;
+
+    try {
+      await signOut(auth);
+      alert('성공적으로 로그아웃 되었습니다.');
+      navigate('/');
+      setIsMobileMenuOpen(false);
+    } catch (error) {
+      console.error('로그아웃 에러:', error);
+      alert('로그아웃 중 오류가 발생했습니다.');
     }
   };
 
-  const isActive = (path) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
-  };
+  // 같은 메뉴 목록을 데스크톱/모바일에서 재사용하기 위한 렌더링 함수
+  const renderNavItems = () =>
+    NAV_ITEMS.map(({ label, path, end }) => (
+      <li key={path}>
+        <NavLink to={path} end={end} className={getMenuClass}>
+          {label}
+        </NavLink>
+      </li>
+    ));
 
-  const getMenuClass = (path) => {
-    return isActive(path)
-      ? 'text-[#1D2EE5] font-bold no-underline text-lg md:border-b-[3px] border-[#1D2EE5] md:pb-1 block py-2 md:py-0'
-      : 'text-black font-bold no-underline text-lg hover:text-[#1D2EE5] transition-colors md:pb-1 md:border-b-[3px] border-transparent block py-2 md:py-0';
-  };
+  // 읽지 않은 알림이 있을 때 알림 버튼 오른쪽 위에 작은 표시 점을 보여줌
+  const renderUnreadAlarmDot = () =>
+    hasUnreadAlarm && (
+      <>
+        <span
+          className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white"
+          aria-hidden="true"
+        />
+        <span className="sr-only">읽지 않은 알림이 있습니다.</span>
+      </>
+    );
 
   return (
     <header className="sticky top-0 left-0 w-full bg-white shadow-xs z-50">
@@ -106,35 +136,33 @@ const Header = () => {
           쉼표,
         </Link>
 
-        <nav className="hidden lg:flex flex-1 justify-center">
+        <nav
+          className="hidden lg:flex flex-1 justify-center"
+          aria-label="주요 메뉴"
+        >
           <ul className="flex list-none p-0 m-0 gap-8 xl:gap-16">
-            <li><Link to="/" className={getMenuClass('/')}>홈</Link></li>
-            <li><Link to="/consolation" className={getMenuClass('/consolation')}>맞춤 위로</Link></li>
-            <li><Link to="/secret_forest" className={getMenuClass('/secret_forest')}>익명 대나무숲</Link></li>
-            <li><Link to="/secret_note" className={getMenuClass('/secret_note')}>비밀 일기장</Link></li>
-            <li><Link to="/mypage" className={getMenuClass('/mypage')}>마이페이지</Link></li>
+            {renderNavItems()}
           </ul>
         </nav>
 
         <div className="hidden lg:flex items-center gap-4 xl:gap-6">
-          <Link to="/alarm">
-            <button className="relative bg-[#F1B5B5] text-[#E71616] px-5 xl:px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-80 transition-all">
-              알림 소식
-              {hasUnreadAlarm && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white" />
-              )}
-            </button>
+          <Link
+            to="/alarm"
+            className="relative bg-[#F1B5B5] text-[#E71616] px-5 xl:px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-80 transition-all no-underline"
+          >
+            알림 소식
+            {renderUnreadAlarmDot()}
           </Link>
 
           {currentUser ? (
             <div className="flex items-center gap-3 xl:gap-4">
               <span className="font-bold text-gray-700 text-lg whitespace-nowrap">
-                <span className="text-[#1D2EE5]">
-                  {currentUser.displayName || '쉼표'}
-                </span>
+                <span className="text-[#1D2EE5]">{displayName}</span>
                 님
               </span>
+
               <button
+                type="button"
                 onClick={handleLogout}
                 className="bg-gray-100 text-gray-600 px-4 xl:px-5 py-2 rounded-md border border-gray-300 font-bold text-sm cursor-pointer whitespace-nowrap hover:bg-gray-200 transition-all"
               >
@@ -143,6 +171,7 @@ const Header = () => {
             </div>
           ) : (
             <button
+              type="button"
               onClick={() => navigate('/login')}
               className="bg-[#9299E5] text-white px-5 xl:px-6 py-2.5 rounded-md border-none font-bold text-base cursor-pointer whitespace-nowrap hover:bg-opacity-90 transition-all"
             >
@@ -152,8 +181,11 @@ const Header = () => {
         </div>
 
         <button
+          type="button"
           className="lg:hidden text-[#1D2EE5] p-2 focus:outline-none"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+          aria-label={isMobileMenuOpen ? '모바일 메뉴 닫기' : '모바일 메뉴 열기'}
+          aria-expanded={isMobileMenuOpen}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -161,11 +193,22 @@ const Header = () => {
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            aria-hidden="true"
           >
             {isMobileMenuOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
             )}
           </svg>
         </button>
@@ -173,36 +216,43 @@ const Header = () => {
 
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-gray-100 shadow-md absolute w-full left-0 top-20">
-          <nav className="flex flex-col px-6 py-4">
+          <nav
+            className="flex flex-col px-6 py-4"
+            aria-label="모바일 주요 메뉴"
+          >
             <ul className="flex flex-col list-none p-0 m-0 gap-2 mb-6">
-              <li><Link to="/" className={getMenuClass('/')}>홈</Link></li>
-              <li><Link to="/consolation" className={getMenuClass('/consolation')}>맞춤 위로</Link></li>
-              <li><Link to="/secret_forest" className={getMenuClass('/secret_forest')}>익명 대나무숲</Link></li>
-              <li><Link to="/secret_note" className={getMenuClass('/secret_note')}>비밀 일기장</Link></li>
-              <li><Link to="/mypage" className={getMenuClass('/mypage')}>마이페이지</Link></li>
+              {renderNavItems()}
             </ul>
 
             <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
               {currentUser ? (
                 <div className="flex flex-col gap-3">
                   <span className="font-bold text-gray-700 text-lg">
-                    <span className="text-[#1D2EE5]">
-                      {currentUser.displayName || '쉼표'}
-                    </span>
+                    <span className="text-[#1D2EE5]">{displayName}</span>
                     님 환영합니다
                   </span>
 
                   <div className="flex gap-2">
-                    <Link to="/alarm" className="flex-1">
-                      <button className="relative w-full bg-[#F1B5B5] text-[#E71616] px-4 py-3 rounded-md font-bold text-base hover:bg-opacity-80 transition-all">
-                        알림 소식
-                        {hasUnreadAlarm && (
-                          <span className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white" />
-                        )}
-                      </button>
+                    <Link
+                      to="/alarm"
+                      className="relative flex-1 w-full bg-[#F1B5B5] text-[#E71616] px-4 py-3 rounded-md font-bold text-base hover:bg-opacity-80 transition-all no-underline text-center"
+                    >
+                      알림 소식
+                      {hasUnreadAlarm && (
+                        <>
+                          <span
+                            className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white"
+                            aria-hidden="true"
+                          />
+                          <span className="sr-only">
+                            읽지 않은 알림이 있습니다.
+                          </span>
+                        </>
+                      )}
                     </Link>
 
                     <button
+                      type="button"
                       onClick={handleLogout}
                       className="flex-1 w-full bg-gray-100 text-gray-600 px-4 py-3 rounded-md border border-gray-300 font-bold text-base hover:bg-gray-200 transition-all"
                     >
@@ -212,13 +262,15 @@ const Header = () => {
                 </div>
               ) : (
                 <div className="flex gap-2">
-                  <Link to="/alarm" className="flex-1">
-                    <button className="w-full bg-[#F1B5B5] text-[#E71616] px-4 py-3 rounded-md font-bold text-base hover:bg-opacity-80 transition-all">
-                      알림 소식
-                    </button>
+                  <Link
+                    to="/alarm"
+                    className="flex-1 w-full bg-[#F1B5B5] text-[#E71616] px-4 py-3 rounded-md font-bold text-base hover:bg-opacity-80 transition-all no-underline text-center"
+                  >
+                    알림 소식
                   </Link>
 
                   <button
+                    type="button"
                     onClick={() => navigate('/login')}
                     className="flex-1 w-full bg-[#9299E5] text-white px-4 py-3 rounded-md font-bold text-base hover:bg-opacity-90 transition-all"
                   >
