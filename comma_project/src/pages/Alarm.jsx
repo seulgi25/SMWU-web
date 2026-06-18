@@ -22,8 +22,9 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
-const WARM_EFFECT_DURATION = 3000;
+const WARM_EFFECT_DURATION = 3000; // 안아주기 알림 클릭 시 따뜻한 배경 효과 지속 시간
 
+// 로딩 상태, 알림이 없는 상태에서 공통으로 사용하는 카드 스타일
 const STATUS_CARD_CLASS =
   'bg-gray-50 rounded-lg p-10 flex justify-center items-center border border-gray-200';
 
@@ -41,12 +42,14 @@ const getTimestampMillis = (timestamp) => {
   return 0;
 };
 
+// 알림 목록을 최신순으로 정렬
 const sortAlarmsByLatest = (alarmList) => {
   return [...alarmList].sort(
     (a, b) => getTimestampMillis(b.createdAt) - getTimestampMillis(a.createdAt)
   );
 };
 
+// 알림 생성 시점으로부터 경과한 시간을 사람이 읽을 수 있는 형태로 변환
 const getTimeAgo = (timestamp) => {
   if (!timestamp || typeof timestamp.toDate !== 'function') {
     return '방금 전';
@@ -66,6 +69,7 @@ const getTimeAgo = (timestamp) => {
   return `${diffInDays}일 전`;
 };
 
+// 읽지 않은 알림을 읽음 상태로 변경
 const markUnreadAlarmsAsRead = async (alarmDocs) => {
   const unreadDocs = alarmDocs.filter(
     (docSnap) => docSnap.data().isRead === false
@@ -92,7 +96,7 @@ const Alarm = () => {
   const [alarms, setAlarms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Firebase Auth를 통해 로그인 여부를 확인하고, 비로그인 사용자는 로그인 페이지로 이동시킨다.
+  // Firebase Auth를 통해 로그인 여부를 확인하고, 비로그인 사용자는 접근 제한
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -109,7 +113,7 @@ const Alarm = () => {
     return unsubscribe;
   }, [navigate]);
 
-  // 로그인한 사용자의 알림 목록을 실시간으로 구독한다.
+  // 로그인한 사용자의 알림 목록을 실시간으로 불러옴.
   useEffect(() => {
     if (!currentUserId) return undefined;
 
@@ -131,7 +135,7 @@ const Alarm = () => {
         setAlarms(sortAlarmsByLatest(fetchedAlarms));
         setIsLoading(false);
 
-        // 알림 센터에 진입하면 읽지 않은 알림을 읽음 상태로 변경한다.
+        // 알림 센터에 진입하면 읽지 않은 알림을 읽음 상태로 변경
         markUnreadAlarmsAsRead(querySnapshot.docs).catch((error) => {
           console.error('알림 읽음 처리 실패:', error);
         });
@@ -158,7 +162,7 @@ const Alarm = () => {
     }, WARM_EFFECT_DURATION);
   }, []);
 
-  // 컴포넌트가 사라질 때 남아 있는 타이머를 정리한다.
+  // 컴포넌트가 사라질 때 남아 있는 타이머를 정리
   useEffect(() => {
     return () => {
       if (warmTimerRef.current) {
@@ -167,6 +171,7 @@ const Alarm = () => {
     };
   }, []);
 
+  // 알림 클릭 시 해당 알림의 유형에 따라 다른 동작 수행
   const handleAlarmClick = (alarm) => {
     if (alarm.type === 'hug') {
       playWarmEffect();
@@ -178,6 +183,7 @@ const Alarm = () => {
     }
   };
 
+  // 알림 목록을 렌더링 (로딩 상태, 알림 없음 상태, 알림 존재 상태 구분하여 렌더링)
   const renderAlarmContent = () => {
     if (isLoading) {
       return (
@@ -193,7 +199,7 @@ const Alarm = () => {
       return (
         <div className={STATUS_CARD_CLASS}>
           <p className="text-gray-500 font-bold text-lg">
-            새로운 알람이 없습니다.
+            새로운 알림이 없습니다.
           </p>
         </div>
       );

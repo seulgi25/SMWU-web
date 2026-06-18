@@ -1,12 +1,12 @@
 /**
  * SecretNoteWrite.jsx
  *
- * 나만의 비밀 일기를 작성하는 페이지입니다.
- * 사용자는 선택한 날짜에 자신의 마음 기록을 작성하고 Firestore에 저장할 수 있습니다.
+ * 나만의 비밀 일기를 작성하는 페이지임.
+ * 사용자는 선택한 날짜에 자신의 마음 기록을 작성하고 Firestore에 저장할 수 있음.
  *
- * - Firebase Auth: 로그인 사용자 확인
- * - Firestore: secret_notes 컬렉션에 비밀 일기 저장
- * - URL query: /secret_note_write?date=YYYY-MM-DD 형태로 작성 날짜 지정
+ * - Firebase Auth: 로그인 사용자 확인함.
+ * - Firestore: secret_notes 컬렉션에 비밀 일기 저장함.
+ * - URL query: /secret_note_write?date=YYYY-MM-DD 형태로 작성 날짜 지정함.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -22,17 +22,21 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
+// 비밀 일기 데이터를 저장할 Firestore 컬렉션 이름 생성.
 const NOTE_COLLECTION = 'secret_notes';
 
+// 연, 월, 일을 YYYY-MM-DD 형식의 문자열로 변환함.
 const formatDateString = (year, month, day) => {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 };
 
+// 오늘 날짜를 YYYY-MM-DD 형식의 문자열로 생성함.
 const getTodayDateString = () => {
   const today = new Date();
   return formatDateString(today.getFullYear(), today.getMonth() + 1, today.getDate());
 };
 
+// 전달받은 날짜 문자열이 실제 존재하는 YYYY-MM-DD 날짜인지 확인함.
 const isValidDateString = (dateString) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString || '')) return false;
 
@@ -46,15 +50,18 @@ const isValidDateString = (dateString) => {
   );
 };
 
+// URL query의 날짜값이 유효하면 사용하고, 유효하지 않으면 오늘 날짜로 대체함.
 const getValidDateParam = (dateParam) => {
   return isValidDateString(dateParam) ? dateParam : getTodayDateString();
 };
 
+// YYYY-MM-DD 날짜 문자열을 화면에 표시할 월/일 형식으로 변환함.
 const getDisplayDate = (dateString) => {
   const [, month, day] = dateString.split('-').map(Number);
   return `${month}월 ${day}일`;
 };
 
+// 해당 사용자가 선택한 날짜에 이미 작성한 일기가 있는지 확인함.
 const checkExistingNote = async (uid, date) => {
   const notesQuery = query(
     collection(db, NOTE_COLLECTION),
@@ -67,15 +74,18 @@ const checkExistingNote = async (uid, date) => {
   return !querySnapshot.empty;
 };
 
+// 비밀 일기 작성 페이지 컴포넌트 생성.
 const SecretNoteWrite = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // URL query의 date 값을 기준으로 작성 날짜를 계산함.
   const dateParam = useMemo(
     () => getValidDateParam(searchParams.get('date')),
     [searchParams]
   );
 
+  // 작성 날짜를 화면 제목에 표시할 문자열로 변환함.
   const displayDate = useMemo(() => getDisplayDate(dateParam), [dateParam]);
 
   const [currentUser, setCurrentUser] = useState(null);
@@ -83,7 +93,7 @@ const SecretNoteWrite = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [content, setContent] = useState('');
 
-  // 로그인한 사용자만 비밀 일기를 작성할 수 있도록 확인한다.
+  // 로그인한 사용자만 비밀 일기를 작성할 수 있도록 확인함.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setIsAuthChecking(false);
@@ -100,6 +110,7 @@ const SecretNoteWrite = () => {
     return unsubscribe;
   }, [navigate]);
 
+  // 일기 저장 버튼 클릭 시 입력값 검증 후 Firestore에 저장함.
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -107,11 +118,13 @@ const SecretNoteWrite = () => {
 
     const trimmedContent = content.trim();
 
+    // 일기 내용이 비어 있는지 확인함.
     if (!trimmedContent) {
       alert('내용을 입력해 주세요.');
       return;
     }
 
+    // 저장 시점에 로그인 상태가 유지되고 있는지 다시 확인함.
     if (!currentUser) {
       alert('로그인이 필요한 서비스입니다.');
       navigate('/login', { replace: true });
@@ -121,6 +134,7 @@ const SecretNoteWrite = () => {
     try {
       setIsSubmitting(true);
 
+      // 같은 사용자가 같은 날짜에 이미 작성한 일기가 있는지 확인함.
       const alreadyHasNote = await checkExistingNote(currentUser.uid, dateParam);
 
       if (alreadyHasNote) {
@@ -129,6 +143,7 @@ const SecretNoteWrite = () => {
         return;
       }
 
+      // Firestore secret_notes 컬렉션에 새 비밀 일기 문서를 생성함.
       await addDoc(collection(db, NOTE_COLLECTION), {
         uid: currentUser.uid,
         content: trimmedContent,
@@ -148,6 +163,7 @@ const SecretNoteWrite = () => {
     }
   };
 
+  // 로그인 상태를 확인하는 동안 로딩 화면을 표시함.
   if (isAuthChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center font-bold text-[#1D2EE5]">
@@ -156,6 +172,7 @@ const SecretNoteWrite = () => {
     );
   }
 
+  // 비밀 일기 작성 페이지 전체 UI를 렌더링함.
   return (
     <main className="w-full max-w-5xl mx-auto px-4 pt-6 pb-8 sm:px-6 sm:pt-10 sm:pb-12">
       <button

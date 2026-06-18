@@ -1,18 +1,23 @@
 /**
  * Mypage.jsx
  *
- * 쉼표 웹서비스의 마이페이지입니다.
+ * 쉼표 웹서비스의 마이페이지임.
  * 로그인한 사용자의 프로필 정보, 내가 작성한 대나무숲 글,
- * 내가 작성한 비밀 일기 목록을 확인할 수 있습니다.
+ * 내가 작성한 비밀 일기 목록을 확인할 수 있음.
  *
- * - Firebase Auth: 현재 로그인 사용자 확인 및 회원 탈퇴
- * - Firestore: 사용자 정보, 대나무숲 글, 비밀 일기 목록 조회
- * - React Router: 계정 설정, 게시글 상세, 비밀 일기 페이지로 이동
+ * - Firebase Auth: 현재 로그인 사용자 확인 및 회원 탈퇴 처리함.
+ * - Firestore: 사용자 정보, 대나무숲 글, 비밀 일기 목록 조회함.
+ * - React Router: 계정 설정, 게시글 상세, 비밀 일기 페이지로 이동함.
  */
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { deleteUser, onAuthStateChanged } from 'firebase/auth';
+import {
+  deleteUser,
+  EmailAuthProvider,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+} from 'firebase/auth';
 import {
   collection,
   deleteDoc,
@@ -24,14 +29,17 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
+// 기본 사용자 정보 생성.
 const DEFAULT_USER_INFO = {
   nickname: '쉼표 사용자',
   profileImage: null,
 };
 
+// 목록 상태 메시지에 사용할 공통 클래스 생성.
 const LIST_STATUS_CLASS =
   'text-center text-sm md:text-base text-gray-400 mt-10';
 
+// Firestore Timestamp 값을 밀리초 단위로 변환함.
 const getTimestampMillis = (timestamp) => {
   if (!timestamp) return 0;
 
@@ -46,12 +54,14 @@ const getTimestampMillis = (timestamp) => {
   return 0;
 };
 
+// 대나무숲 글 목록을 작성일 기준 최신순으로 정렬함.
 const sortPostsByLatest = (posts) => {
   return [...posts].sort(
     (a, b) => getTimestampMillis(b.createdAt) - getTimestampMillis(a.createdAt)
   );
 };
 
+// 비밀 일기 목록을 날짜 또는 작성일 기준 최신순으로 정렬함.
 const sortNotesByLatest = (notes) => {
   return [...notes].sort((a, b) => {
     const dateA = a.date ? new Date(a.date).getTime() : getTimestampMillis(a.createdAt);
@@ -61,6 +71,7 @@ const sortNotesByLatest = (notes) => {
   });
 };
 
+// 비밀 일기의 날짜 문자열을 화면에 표시할 제목 형식으로 변환함.
 const formatNoteTitle = (dateString) => {
   if (!dateString) return '날짜 없음';
 
@@ -69,10 +80,12 @@ const formatNoteTitle = (dateString) => {
   return `${year}년 ${Number(month)}월 ${Number(day)}일 나의 속마음`;
 };
 
+// 프로필 이미지가 없을 때 닉네임 첫 글자를 표시함.
 const getProfileInitial = (nickname) => {
   return nickname?.trim()?.charAt(0) || '쉼';
 };
 
+// 마이페이지 화면 컴포넌트 생성.
 const Mypage = () => {
   const navigate = useNavigate();
 
@@ -88,7 +101,7 @@ const Mypage = () => {
   const currentUserId = currentUser?.uid;
   const isLoading = isForestLoading || isNotesLoading;
 
-  // 로그인 상태를 확인하고, 비로그인 사용자는 로그인 페이지로 이동시킨다.
+  // 로그인 상태를 확인하고, 비로그인 사용자는 로그인 페이지로 이동시킴.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -107,7 +120,7 @@ const Mypage = () => {
     return unsubscribe;
   }, [navigate]);
 
-  // Firestore users 문서의 닉네임/프로필 이미지 변경 사항을 실시간 반영한다.
+  // Firestore users 문서의 닉네임/프로필 이미지 변경 사항을 실시간 반영함.
   useEffect(() => {
     if (!currentUserId) return undefined;
 
@@ -131,7 +144,7 @@ const Mypage = () => {
     return unsubscribe;
   }, [currentUser, currentUserId]);
 
-  // 내가 작성한 익명 대나무숲 글 목록을 불러온다.
+  // 내가 작성한 익명 대나무숲 글 목록을 실시간으로 불러옴.
   useEffect(() => {
     if (!currentUserId) return undefined;
 
@@ -162,7 +175,7 @@ const Mypage = () => {
     return unsubscribe;
   }, [currentUserId]);
 
-  // 내가 작성한 비밀 일기 목록을 불러온다.
+  // 내가 작성한 비밀 일기 목록을 실시간으로 불러옴.
   useEffect(() => {
     if (!currentUserId) return undefined;
 
@@ -193,6 +206,13 @@ const Mypage = () => {
     return unsubscribe;
   }, [currentUserId]);
 
+  // 회원탈퇴 전 현재 비밀번호로 사용자를 재인증함.
+  const reauthenticateForDeleteAccount = async (user, password) => {
+    const credential = EmailAuthProvider.credential(user.email, password);
+    await reauthenticateWithCredential(user, credential);
+  };
+
+  // 회원탈퇴 확인 및 재인증 후 Firestore 사용자 문서와 Firebase Auth 계정을 삭제함.
   const handleDeleteAccount = async () => {
     const user = auth.currentUser;
 
@@ -207,9 +227,17 @@ const Mypage = () => {
 
     if (!confirmDelete) return;
 
+    const currentPassword = window.prompt('회원탈퇴를 위해 현재 비밀번호를 입력해 주세요.');
+
+    if (!currentPassword) {
+      alert('회원탈퇴가 취소되었습니다.');
+      return;
+    }
+
     try {
       setIsDeleting(true);
 
+      await reauthenticateForDeleteAccount(user, currentPassword);
       await deleteDoc(doc(db, 'users', user.uid));
       await deleteUser(user);
 
@@ -218,7 +246,9 @@ const Mypage = () => {
     } catch (error) {
       console.error('회원 탈퇴 실패:', error);
 
-      if (error.code === 'auth/requires-recent-login') {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        alert('현재 비밀번호가 틀립니다. 다시 입력해주세요.');
+      } else if (error.code === 'auth/requires-recent-login') {
         alert('보안을 위해 다시 로그인한 후 회원탈퇴를 진행해 주세요.');
       } else {
         alert('회원 탈퇴 중 오류가 발생했습니다.');
@@ -228,6 +258,7 @@ const Mypage = () => {
     }
   };
 
+  // 내가 작성한 대나무숲 글 목록 영역을 렌더링함.
   const renderForestPosts = () => {
     if (isForestLoading) {
       return <p className={LIST_STATUS_CLASS}>데이터를 불러오는 중입니다...</p>;
@@ -249,6 +280,7 @@ const Mypage = () => {
     ));
   };
 
+  // 내가 작성한 비밀 일기 목록 영역을 렌더링함.
   const renderSecretNotes = () => {
     if (isNotesLoading) {
       return <p className={LIST_STATUS_CLASS}>데이터를 불러오는 중입니다...</p>;
@@ -270,6 +302,7 @@ const Mypage = () => {
     ));
   };
 
+  // 마이페이지 전체 UI를 렌더링함.
   return (
     <main className="w-full max-w-5xl mx-auto pt-10 md:pt-16 pb-20 px-4 md:px-6">
       <section className="text-left mb-6 md:mb-10 px-1 md:px-2">

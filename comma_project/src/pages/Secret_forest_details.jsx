@@ -1,14 +1,14 @@
 /**
  * SecretForestDetails.jsx
  *
- * 익명 대나무숲 게시글의 상세 페이지입니다.
+ * 익명 대나무숲 게시글의 상세 페이지임.
  * 게시글 본문 조회, 수정, 삭제, 신고, 안아주기, 댓글/답글 작성,
- * 댓글 음악 추천 기능을 담당합니다.
+ * 댓글 음악 추천 기능을 담당함.
  *
- * - 게시글/댓글 데이터: Firestore에서 실시간 구독
- * - 안아주기: 따뜻한 배경 효과 + 최초 1회 알림 생성
- * - 댓글: 일반 댓글, 답글, 수정, 삭제, 음악 첨부 지원
- * - 신고: 누적 신고 5회 이상일 경우 블라인드 처리
+ * - 게시글/댓글 데이터: Firestore에서 실시간 구독함.
+ * - 안아주기: 따뜻한 배경 효과와 최초 1회 알림을 생성함.
+ * - 댓글: 일반 댓글, 답글, 수정, 삭제, 음악 첨부를 지원함.
+ * - 신고: 누적 신고 5회 이상일 경우 블라인드 처리함.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -19,6 +19,7 @@ import {
   collection,
   doc,
   getDocs,
+  increment,
   onSnapshot,
   orderBy,
   query,
@@ -29,30 +30,38 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
+// Firestore 컬렉션 이름과 안아주기 효과 시간을 생성함.
 const POST_COLLECTION = 'secret_forest_list';
 const ALARM_COLLECTION = 'alarms';
 const WARM_EFFECT_DURATION = 3000;
 
+// 게시글 수정 시 선택할 수 있는 태그 목록 생성.
 const TAG_OPTIONS = ['#인간관계', '#학업', '#면접', '#취업', '#기타'];
 
+// 기존 태그명을 현재 태그명으로 변환하기 위한 매핑값 생성.
 const TAG_NAME_MAP = {
   '#학업스트레스': '#학업',
 };
 
+// 게시글과 댓글에서 차단할 단어 목록 생성.
 const BANNED_WORDS = [
   '자살', '죽고 싶다', '죽고싶다', '죽을래', '죽을래요', '죽을 것 같다', '죽을 것 같아', '죽을 것 같아요', '씨발', '시발', '개새끼', '미친놈', '병신',
 ];
 
+// 게시글 문서 참조를 생성함.
 const getPostRef = (postId) => doc(db, POST_COLLECTION, postId);
 
+// 게시글 하위 댓글 컬렉션 참조를 생성함.
 const getCommentsRef = (postId) =>
   collection(db, POST_COLLECTION, postId, 'comments');
 
+// 필터링 비교를 위해 공백 제거 및 소문자 변환을 처리함.
 const normalizeTextForFilter = (text) =>
   String(text ?? '')
     .replace(/\s+/g, '')
     .toLowerCase();
 
+// 입력된 텍스트들에 금지어가 포함되어 있는지 확인함.
 const hasBannedWord = (...texts) => {
   const normalizedTexts = texts.map(normalizeTextForFilter);
 
@@ -62,6 +71,7 @@ const hasBannedWord = (...texts) => {
   });
 };
 
+// 태그값을 화면과 DB 저장에 사용할 형식으로 정리함.
 const formatTag = (tag) => {
   const trimmedTag = String(tag ?? '').trim();
 
@@ -76,6 +86,7 @@ const formatTag = (tag) => {
   return TAG_NAME_MAP[normalizedTag] || formattedTag;
 };
 
+// 음악 추천 클릭 시 이동할 유튜브 검색 URL을 생성함.
 const getYoutubeSearchUrl = (title, artist) => {
   const searchKeyword = `${artist} ${title}`;
 
@@ -84,6 +95,7 @@ const getYoutubeSearchUrl = (title, artist) => {
   )}`;
 };
 
+// 익명 대나무숲 상세 페이지 컴포넌트 생성.
 const SecretForestDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -113,15 +125,18 @@ const SecretForestDetails = () => {
   const [replyingToId, setReplyingToId] = useState(null);
   const [replyText, setReplyText] = useState('');
 
+  // 게시글 블라인드 여부와 작성자 여부를 계산함.
   const isBlinded = (post?.reportCount || 0) >= 5;
   const isPostAuthor = currentUser && post?.uid === currentUser.uid;
   const postTag = formatTag(post?.tag || post?.tags?.[0] || '#기타');
 
+  // 댓글 목록에서 부모 댓글만 분리함.
   const mainComments = useMemo(
     () => comments.filter((comment) => !comment.parentId),
     [comments]
   );
 
+  // 답글 목록을 부모 댓글 id 기준으로 묶음.
   const repliesByParentId = useMemo(() => {
     return comments.reduce((acc, comment) => {
       if (!comment.parentId) return acc;
@@ -135,7 +150,7 @@ const SecretForestDetails = () => {
     }, {});
   }, [comments]);
 
-  // 로그인 상태를 확인하고, 비로그인 사용자는 로그인 페이지로 이동시킨다.
+  // 로그인 상태를 확인하고, 비로그인 사용자는 로그인 페이지로 이동시킴.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -151,7 +166,7 @@ const SecretForestDetails = () => {
     return unsubscribe;
   }, [navigate]);
 
-  // 현재 게시글을 Firestore에서 실시간으로 구독한다.
+  // 현재 게시글을 Firestore에서 실시간으로 구독함.
   useEffect(() => {
     if (!id) return undefined;
 
@@ -181,7 +196,7 @@ const SecretForestDetails = () => {
     return unsubscribe;
   }, [id, navigate]);
 
-  // 댓글과 답글 목록을 작성 시간순으로 실시간 구독한다.
+  // 댓글과 답글 목록을 작성 시간순으로 실시간 구독함.
   useEffect(() => {
     if (!id) return undefined;
 
@@ -208,7 +223,7 @@ const SecretForestDetails = () => {
     return unsubscribe;
   }, [id]);
 
-  // 안아주기 배경 효과가 끝나기 전에 컴포넌트가 사라질 경우 타이머를 정리한다.
+  // 안아주기 배경 효과가 끝나기 전에 컴포넌트가 사라질 경우 타이머를 정리함.
   useEffect(() => {
     return () => {
       if (warmTimerRef.current) {
@@ -217,6 +232,7 @@ const SecretForestDetails = () => {
     };
   }, []);
 
+  // 안아주기 클릭 시 따뜻한 배경 효과를 일정 시간 동안 실행함.
   const playWarmEffect = useCallback(() => {
     if (warmTimerRef.current) {
       clearTimeout(warmTimerRef.current);
@@ -229,11 +245,13 @@ const SecretForestDetails = () => {
     }, WARM_EFFECT_DURATION);
   }, []);
 
+  // 댓글 수정 상태를 초기화함.
   const resetCommentEditState = () => {
     setEditingCommentId(null);
     setEditCommentText('');
   };
 
+  // 음악 추천 입력값을 필드별로 업데이트함.
   const updateMusicInput = (field, value) => {
     setMusicInput((prev) => ({
       ...prev,
@@ -241,6 +259,7 @@ const SecretForestDetails = () => {
     }));
   };
 
+  // 게시글과 하위 댓글을 일괄 삭제함.
   const handleDelete = async () => {
     const confirmDelete = window.confirm(
       '정말 삭제하시겠습니까? 복구할 수 없습니다.'
@@ -268,6 +287,7 @@ const SecretForestDetails = () => {
     }
   };
 
+  // 게시글 수정 모드로 전환하고 기존 내용을 수정 입력값에 반영함.
   const handleEditStart = () => {
     if (!post) return;
 
@@ -277,6 +297,7 @@ const SecretForestDetails = () => {
     setIsEditing(true);
   };
 
+  // 게시글 수정 입력값을 검증한 뒤 Firestore에 저장함.
   const handleEditSave = async () => {
     const trimmedTitle = editTitle.trim();
     const trimmedContent = editContent.trim();
@@ -313,6 +334,7 @@ const SecretForestDetails = () => {
     }
   };
 
+  // 댓글이 달렸을 때 게시글 작성자에게 알림을 생성함.
   const createCommentAlarm = async (receiverUid) => {
     await addDoc(collection(db, ALARM_COLLECTION), {
       uid: receiverUid,
@@ -324,6 +346,7 @@ const SecretForestDetails = () => {
     });
   };
 
+  // 새 댓글을 등록하고 필요한 경우 게시글 작성자에게 알림을 생성함.
   const handleAddComment = async () => {
     const commentText = newComment.trim();
     const user = auth.currentUser;
@@ -355,7 +378,7 @@ const SecretForestDetails = () => {
       setNewComment('');
       setSelectedMusic(null);
 
-      // 글쓴이가 아닌 사용자가 댓글을 남긴 경우 글쓴이에게 알림을 보낸다.
+      // 글쓴이가 아닌 사용자가 댓글을 남긴 경우 글쓴이에게 알림을 보냄.
       if (post?.uid && post.uid !== user.uid) {
         await createCommentAlarm(post.uid);
       }
@@ -365,6 +388,7 @@ const SecretForestDetails = () => {
     }
   };
 
+  // 선택한 부모 댓글 아래에 답글을 등록함.
   const handleAddReply = async (parentId) => {
     const replyContent = replyText.trim();
     const user = auth.currentUser;
@@ -398,6 +422,7 @@ const SecretForestDetails = () => {
     }
   };
 
+  // 댓글 삭제 시 해당 댓글의 답글까지 함께 삭제함.
   const handleDeleteComment = async (commentId) => {
     const confirmDelete = window.confirm('정말 삭제하시겠습니까?');
 
@@ -433,11 +458,13 @@ const SecretForestDetails = () => {
     }
   };
 
+  // 선택한 댓글을 수정 모드로 전환함.
   const handleEditCommentStart = (comment) => {
     setEditingCommentId(comment.id);
     setEditCommentText(comment.text || '');
   };
 
+  // 수정한 댓글 내용을 검증한 뒤 Firestore에 저장함.
   const handleEditCommentSave = async (commentId) => {
     const trimmedText = editCommentText.trim();
 
@@ -464,6 +491,7 @@ const SecretForestDetails = () => {
     }
   };
 
+  // 게시글 신고 여부를 확인하고 누적 신고 수를 업데이트함.
   const handleReport = async () => {
     if (!post || isPostAuthor) return;
 
@@ -489,6 +517,7 @@ const SecretForestDetails = () => {
     }
   };
 
+  // 게시글 작성자에게 최초 1회 안아주기 알림을 생성함.
   const createFirstHugAlarm = async (receiverUid) => {
     const alarmsRef = collection(db, ALARM_COLLECTION);
     const existingHugAlarmQuery = query(
@@ -513,6 +542,14 @@ const SecretForestDetails = () => {
     });
   };
 
+  // 안아주기 버튼 클릭 시 게시글의 내부 안아주기 수를 1 증가시킴.
+  const increaseHugCount = async () => {
+    await updateDoc(getPostRef(id), {
+      hugCount: increment(1),
+    });
+  };
+
+  // 안아주기 효과를 실행하고 본인 글이 아닌 경우 알림을 생성함.
   const handleWarmHug = async () => {
     const user = auth.currentUser;
 
@@ -525,7 +562,13 @@ const SecretForestDetails = () => {
 
     playWarmEffect();
 
-    // 본인이 아닌 사용자가 누른 경우에만 글쓴이에게 최초 1회 안아주기 알림을 보낸다.
+    try {
+      await increaseHugCount();
+    } catch (error) {
+      console.error('안아주기 수 업데이트 실패:', error);
+    }
+
+    // 본인이 아닌 사용자가 누른 경우에만 글쓴이에게 최초 1회 안아주기 알림을 보냄.
     if (post.uid && post.uid !== user.uid) {
       try {
         await createFirstHugAlarm(post.uid);
@@ -535,6 +578,7 @@ const SecretForestDetails = () => {
     }
   };
 
+  // 음악 추천 입력값을 검증하고 댓글에 첨부할 음악 정보를 저장함.
   const handleMusicSubmit = () => {
     const trimmedTitle = musicInput.title.trim();
     const trimmedArtist = musicInput.artist.trim();
@@ -552,6 +596,7 @@ const SecretForestDetails = () => {
     setMusicInput({ title: '', artist: '' });
   };
 
+  // 첨부된 음악 정보를 유튜브 검색 결과로 열어줌.
   const handlePlayMusic = (title, artist) => {
     window.open(
       getYoutubeSearchUrl(title, artist),
@@ -560,6 +605,7 @@ const SecretForestDetails = () => {
     );
   };
 
+  // 게시글을 불러오는 동안 로딩 화면을 표시함.
   if (isPostLoading || !post) {
     return (
       <div className="min-h-screen flex items-center justify-center text-lg font-bold">
@@ -568,6 +614,7 @@ const SecretForestDetails = () => {
     );
   }
 
+  // 게시글 상세 페이지 전체 UI를 렌더링함.
   return (
     <div
       className={`min-h-screen transition-colors duration-1000 ${

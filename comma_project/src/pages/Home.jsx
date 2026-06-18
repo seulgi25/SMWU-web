@@ -25,6 +25,7 @@ import { db } from '../firebase';
 
 const OPENWEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
 
+// 날씨 정보 불러오기 전에 기본값으로 보여줄 데이터와 API 호출 실패 시 보여줄 대체 데이터를 정의
 const DEFAULT_WEATHER = {
   location: '위치 파악 중...',
   condition: '날씨 로딩 중...',
@@ -37,9 +38,9 @@ const WEATHER_ERROR_FALLBACK = {
   emoji: '☀️',
 };
 
+// OpenWeatherMap의 날씨 상태값을 화면에 표시할 문구와 이모지로 변환하기 위해 매핑함
 const WEATHER_INFO_MAP = {
   Clear: { emoji: '☀️', condition: '맑음' },
-  Clouds: { emoji: '☁️', condition: '흐림' },
   Rain: { emoji: '🌧️', condition: '비' },
   Drizzle: { emoji: '🌦️', condition: '가벼운 비' },
   Thunderstorm: { emoji: '⚡', condition: '천둥번개' },
@@ -51,8 +52,10 @@ const WEATHER_INFO_MAP = {
   Fog: { emoji: '🌫️', condition: '안개/미세먼지' },
 };
 
+// 대나무숲의 태그 데이터가 없을 때 보여줄 기본 태그 목록을 정의
 const DEFAULT_TAGS = ['#쉼표', '#공감', '#이야기'];
 
+// 홈화면에서 주요 기능 페이지로 이동하기 위한 카드 데이터
 const FEATURE_CARDS = [
   {
     title: '맞춤 위로 진단',
@@ -71,15 +74,34 @@ const FEATURE_CARDS = [
   },
 ];
 
+// Firestore에 저장된 유사한 태그명을 홈 화면에서는 하나의 대표 태그로 표시
 const TAG_NAME_MAP = {
   '#학업스트레스': '#학업',
   '#학업 스트레스': '#학업',
 };
 
-const getWeatherInfo = (weatherMain) => {
+// OpenWeatherMap에서 Clouds로 내려오더라도 구름량에 따라 표시 문구를 세분화
+const getWeatherInfo = (weatherMain, cloudiness = 0) => {
+  if (weatherMain === 'Clouds') {
+    if (cloudiness <= 35) {
+      return { emoji: '☀️', condition: '맑음' };
+    }
+
+    if (cloudiness <= 60) {
+      return { emoji: '⛅', condition: '구름 조금' };
+    }
+
+    if (cloudiness <= 85) {
+      return { emoji: '☁️', condition: '구름 많음' };
+    }
+
+    return { emoji: '☁️', condition: '흐림' };
+  }
+
   return WEATHER_INFO_MAP[weatherMain] || WEATHER_INFO_MAP.Clear;
 };
 
+// 현재 위치의 위도오와 경도를 받아 OpenWeatherMap API를 호출할 URL을 생성
 const getWeatherApiUrl = (latitude, longitude) => {
   const params = new URLSearchParams({
     lat: String(latitude),
@@ -91,6 +113,7 @@ const getWeatherApiUrl = (latitude, longitude) => {
   return `https://api.openweathermap.org/data/2.5/weather?${params.toString()}`;
 };
 
+// Firestore에 저장된 태그를 화면에 표시할 형태로 포맷팅
 const formatTag = (tag) => {
   const trimmedTag = String(tag ?? '').trim();
 
@@ -103,6 +126,7 @@ const formatTag = (tag) => {
   return TAG_NAME_MAP[formattedTag] || formattedTag;
 };
 
+// 최근 대나무숲 게시글의 태그를 분석하여 상위 3개의 공감 키워드를 추출
 const extractTopTags = (querySnapshot) => {
   const tagCounts = {};
 
@@ -136,7 +160,7 @@ const Home = () => {
 
   const tagsToRender = topTags.length > 0 ? topTags : DEFAULT_TAGS;
 
-  // 사용자의 현재 위치를 기반으로 OpenWeatherMap API에서 날씨 정보를 가져온다.
+  // 사용자의 현재 위치를 기반으로 OpenWeatherMap API에서 날씨 정보를 가져옴.
   useEffect(() => {
     let isActive = true;
 
@@ -144,8 +168,9 @@ const Home = () => {
       try {
         const response = await axios.get(getWeatherApiUrl(latitude, longitude));
         const weatherMain = response.data?.weather?.[0]?.main;
+        const cloudiness = response.data?.clouds?.all ?? 0;
         const cityName = response.data?.name || '현재 위치';
-        const { condition, emoji } = getWeatherInfo(weatherMain);
+        const { condition, emoji } = getWeatherInfo(weatherMain, cloudiness);
 
         if (!isActive) return;
 
@@ -163,6 +188,7 @@ const Home = () => {
       }
     };
 
+    // API 키가 없거나 위치 정보 접근이 불가능한 경우, 기본 날씨 정보를 보여줌.
     if (!OPENWEATHER_API_KEY) {
       console.error('OpenWeatherMap API 키가 설정되지 않았습니다.');
       setWeather(WEATHER_ERROR_FALLBACK);
@@ -181,6 +207,7 @@ const Home = () => {
       };
     }
 
+    // 사용자의 현재 위치를 가져와서 날씨 정보를 업데이트
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         updateWeatherByCurrentLocation(coords.latitude, coords.longitude);
@@ -203,7 +230,7 @@ const Home = () => {
     };
   }, []);
 
-  // 최근 대나무숲 게시글의 태그를 분석하여 상위 3개의 공감 키워드를 보여준다.
+  // 최근 대나무숲 게시글의 태그를 분석하여 상위 3개의 공감 키워드를 보여줌.
   useEffect(() => {
     const postsRef = collection(db, 'secret_forest_list');
     const recentPostsQuery = query(
@@ -264,9 +291,11 @@ const Home = () => {
             <span role="img" aria-label={weather.condition}>
               {weather.emoji}
             </span>
-            <span className="text-[10px] mt-1 tracking-widest opacity-70 font-mono">
-              ////
-            </span>
+            {['비', '가벼운 비'].includes(weather.condition) && (
+              <span className="text-xs mt-1 opacity-80">
+                ///
+              </span>
+            )}
           </div>
         </div>
 

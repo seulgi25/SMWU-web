@@ -1,13 +1,13 @@
 /**
  * SecretNoteList.jsx
  *
- * 나만의 비밀 일기 기록을 달력 형태로 확인하는 페이지입니다.
+ * 나만의 비밀 일기 기록을 달력 형태로 확인하는 페이지임.
  * 사용자는 날짜를 선택하여 해당 날짜의 일기를 확인하고,
- * 작성된 일기의 내용과 태그를 수정하거나 삭제할 수 있습니다.
+ * 작성된 일기의 내용과 태그를 수정하거나 삭제할 수 있음.
  *
- * - Firebase Auth: 로그인 사용자 확인
- * - Firestore: 로그인 사용자의 secret_notes 문서 조회, 수정, 삭제
- * - URL query: /secret_note?date=YYYY-MM-DD 형태로 특정 날짜 일기 바로 열기
+ * - Firebase Auth: 로그인 사용자 확인함.
+ * - Firestore: 로그인 사용자의 secret_notes 문서 조회, 수정, 삭제함.
+ * - URL query: /secret_note?date=YYYY-MM-DD 형태로 특정 날짜 일기 바로 열기 처리함.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -25,12 +25,16 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
+// 비밀 일기 데이터를 저장하는 Firestore 컬렉션 이름 생성.
 const NOTE_COLLECTION = 'secret_notes';
 
+// 달력 상단에 표시할 요일 목록 생성.
 const WEEK_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
+// Firestore 실시간 구독 오류 발생 시 표시할 안내 메시지 생성.
 const LISTENING_ERROR_MESSAGE = '일기 데이터를 불러오는 중 오류가 발생했습니다.';
 
+// Firestore Timestamp 값을 밀리초 단위로 변환함.
 const getTimestampMillis = (timestamp) => {
   if (!timestamp) return 0;
   if (typeof timestamp.toMillis === 'function') return timestamp.toMillis();
@@ -39,10 +43,12 @@ const getTimestampMillis = (timestamp) => {
   return 0;
 };
 
+// 연, 월, 일을 YYYY-MM-DD 형식의 문자열로 변환함.
 const formatDate = (year, month, day) => {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 };
 
+// date query 값이 올바른 YYYY-MM-DD 날짜 형식인지 확인함.
 const isValidDateString = (dateString) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString || '')) return false;
 
@@ -56,6 +62,7 @@ const isValidDateString = (dateString) => {
   );
 };
 
+// YYYY-MM-DD 문자열을 Date 객체로 변환함.
 const getDateFromString = (dateString) => {
   if (!isValidDateString(dateString)) return null;
 
@@ -64,6 +71,7 @@ const getDateFromString = (dateString) => {
   return new Date(year, month - 1, day);
 };
 
+// 선택한 날짜를 화면에 표시할 한글 날짜 형식으로 변환함.
 const getDisplayDateString = (dateString) => {
   if (!isValidDateString(dateString)) return '';
 
@@ -72,11 +80,13 @@ const getDisplayDateString = (dateString) => {
   return `${year}년 ${month}월 ${day}일`;
 };
 
+// 태그 데이터가 배열이면 문자열로 합치고, 문자열이면 그대로 반환함.
 const formatTags = (tags) => {
   if (Array.isArray(tags)) return tags.join(' ');
   return tags || '';
 };
 
+// 일기 목록을 날짜 또는 작성일 기준 최신순으로 정렬함.
 const sortNotesByLatest = (notes) => {
   return [...notes].sort((a, b) => {
     const dateA = a.date ? new Date(a.date).getTime() : getTimestampMillis(a.createdAt);
@@ -86,10 +96,12 @@ const sortNotesByLatest = (notes) => {
   });
 };
 
+// 비밀 일기 목록 및 달력 페이지 컴포넌트 생성.
 const SecretNoteList = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // URL query에서 선택된 날짜값을 가져옴.
   const queryDate = searchParams.get('date');
 
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -105,25 +117,29 @@ const SecretNoteList = () => {
   const [editContent, setEditContent] = useState('');
   const [editTags, setEditTags] = useState('');
 
+  // 현재 달력에서 표시할 연도, 월, 날짜 수, 시작 요일을 계산함.
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = new Date(year, month, 1).getDay();
 
+  // 일기가 작성된 날짜만 빠르게 확인하기 위해 Set으로 변환함.
   const noteDateSet = useMemo(() => {
     return new Set(notes.map((note) => note.date).filter(Boolean));
   }, [notes]);
 
+  // 선택한 날짜에 해당하는 일기 데이터를 찾음.
   const selectedNote = useMemo(() => {
     if (!selectedDate) return null;
     return notes.find((note) => note.date === selectedDate) || null;
   }, [notes, selectedDate]);
 
+  // 선택한 날짜를 화면 제목에 표시할 문자열로 변환함.
   const displayDateString = useMemo(() => {
     return selectedDate ? getDisplayDateString(selectedDate) : '';
   }, [selectedDate]);
 
-  // 로그인 상태를 확인하고, 로그인된 사용자만 일기 목록을 볼 수 있게 한다.
+  // 로그인 상태를 확인하고, 로그인된 사용자만 일기 목록을 볼 수 있게 처리함.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -141,7 +157,7 @@ const SecretNoteList = () => {
     return unsubscribe;
   }, [navigate]);
 
-  // URL의 date query가 있으면 해당 날짜를 선택하고 달력도 해당 달로 이동한다.
+  // URL의 date query가 있으면 해당 날짜를 선택하고 달력도 해당 달로 이동함.
   useEffect(() => {
     if (!queryDate || !isValidDateString(queryDate)) return;
 
@@ -152,7 +168,7 @@ const SecretNoteList = () => {
     setIsEditing(false);
   }, [queryDate]);
 
-  // Firestore에서 로그인한 사용자의 비밀 일기만 실시간으로 구독한다.
+  // Firestore에서 로그인한 사용자의 비밀 일기만 실시간으로 구독함.
   useEffect(() => {
     if (!currentUserId) return undefined;
 
@@ -184,38 +200,45 @@ const SecretNoteList = () => {
     return unsubscribe;
   }, [currentUserId]);
 
+  // 이전 달 버튼 클릭 시 달력을 이전 달로 이동함.
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
   };
 
+  // 다음 달 버튼 클릭 시 달력을 다음 달로 이동함.
   const handleNextMonth = () => {
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
+  // 날짜를 선택하고 URL query에도 선택 날짜를 반영함.
   const handleDateSelect = (dateString) => {
     setSelectedDate(dateString);
     setIsEditing(false);
     setSearchParams({ date: dateString });
   };
 
+  // 선택된 일기 상세 영역을 닫고 URL query를 초기화함.
   const handleCloseSelectedNote = () => {
     setSelectedDate(null);
     setIsEditing(false);
     setSearchParams({});
   };
 
+  // 선택한 일기를 수정 모드로 전환하고 기존 내용을 수정 입력값에 반영함.
   const handleEditStart = (note) => {
     setEditContent(note.content || '');
     setEditTags(formatTags(note.tags));
     setIsEditing(true);
   };
 
+  // 일기 수정 모드를 취소하고 수정 입력값을 초기화함.
   const handleEditCancel = () => {
     setIsEditing(false);
     setEditContent('');
     setEditTags('');
   };
 
+  // 수정한 일기 내용을 검증한 뒤 Firestore에 저장함.
   const handleEditSave = async (noteId) => {
     const trimmedContent = editContent.trim();
     const trimmedTags = editTags.trim();
@@ -245,6 +268,7 @@ const SecretNoteList = () => {
     }
   };
 
+  // 선택한 일기를 삭제하고 수정 상태를 초기화함.
   const handleDelete = async (noteId) => {
     const confirmDelete = window.confirm('정말 이 기록을 삭제하시겠습니까? 복구할 수 없습니다.');
 
@@ -266,7 +290,9 @@ const SecretNoteList = () => {
     }
   };
 
+  // 현재 월의 달력 날짜 셀을 생성함.
   const renderCalendarDays = () => {
+    // 해당 월의 1일 전까지 비어 있는 칸을 생성함.
     const emptyCells = Array.from({ length: firstDayOfMonth }).map((_, index) => (
       <div
         key={`empty-${index}`}
@@ -274,6 +300,7 @@ const SecretNoteList = () => {
       />
     ));
 
+    // 현재 월의 실제 날짜 칸을 생성함.
     const dateCells = Array.from({ length: daysInMonth }).map((_, index) => {
       const day = index + 1;
       const dateString = formatDate(year, month, day);
@@ -313,6 +340,7 @@ const SecretNoteList = () => {
     return [...emptyCells, ...dateCells];
   };
 
+  // 선택 날짜와 일기 존재 여부에 따라 일기 상세 영역을 렌더링함.
   const renderNoteViewer = () => {
     if (!selectedDate) {
       return (
@@ -423,6 +451,7 @@ const SecretNoteList = () => {
     );
   };
 
+  // 비밀 일기 달력과 선택한 일기 상세 영역을 렌더링함.
   return (
     <main className="w-full max-w-6xl mx-auto pt-10 md:pt-16 pb-12 px-4">
       <section className="text-left mb-8 md:mb-10">

@@ -13,6 +13,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+// 감정 선택 버튼 목록
 const EMOTION_OPTIONS = [
   '우울함',
   '지침 / 번아웃',
@@ -24,6 +25,7 @@ const EMOTION_OPTIONS = [
   '조급함',
 ];
 
+// 상황 선택 버튼 목록
 const SITUATION_OPTIONS = [
   '시험 및 학업',
   '인간관계',
@@ -35,6 +37,7 @@ const SITUATION_OPTIONS = [
   '가족 갈등',
 ];
 
+// 선택 여부에 따른 버튼 칩 스타일 반환
 const getChipClassName = (isSelected) =>
   `px-3.5 py-2 md:px-6 md:py-3 rounded-lg md:rounded-xl font-bold text-sm md:text-base transition-all ${
     isSelected
@@ -45,15 +48,18 @@ const getChipClassName = (isSelected) =>
 const Consolation = () => {
   const navigate = useNavigate();
 
+  // 사용자가 선택한 감정과 상황 상태 관리
   const [selectedEmotion, setSelectedEmotion] = useState('');
   const [selectedSituation, setSelectedSituation] = useState('');
 
+  // 감정/상황 선택 여부 확인 후 결과 페이지로 이동
   const handleResultClick = () => {
     if (!selectedEmotion || !selectedSituation) {
       alert('감정과 상황을 모두 선택해주세요.');
       return;
     }
 
+    // React Router state로 선택한 감정과 상황 전달
     navigate('/consolation_result', {
       state: {
         emotion: selectedEmotion,
@@ -62,6 +68,7 @@ const Consolation = () => {
     });
   };
 
+  // 감정/상황 버튼 칩 렌더링
   const renderOptionChips = (options, selectedValue, onSelect) => {
     return options.map((option) => {
       const isSelected = selectedValue === option;
@@ -82,6 +89,7 @@ const Consolation = () => {
 
   return (
     <main className="w-full max-w-5xl mx-auto pt-10 md:pt-16 pb-12 px-4 md:px-6">
+      {/* 페이지 제목 영역 */}
       <section className="text-left mb-6 md:mb-8 px-1 md:px-2">
         <h1 className="text-3xl md:text-4xl font-bold text-[#1D2EE5] mb-1 md:mb-2">
           마음 상태 진단
@@ -92,6 +100,7 @@ const Consolation = () => {
       </section>
 
       <section className="bg-white rounded-2xl p-6 md:p-14 shadow-sm w-full border border-gray-100">
+        {/* 내면의 감정 선택 영역 */}
         <div className="mb-8 md:mb-12">
           <h2 className="text-lg md:text-xl font-bold text-black mb-4 md:mb-6 flex items-center">
             <span className="w-1.5 h-1.5 bg-black rounded-full mr-2 md:mr-3" />
@@ -107,6 +116,7 @@ const Consolation = () => {
           </div>
         </div>
 
+        {/* 현실의 상황 선택 영역 */}
         <div className="mb-10 md:mb-14">
           <h2 className="text-lg md:text-xl font-bold text-black mb-4 md:mb-6 flex items-center">
             <span className="w-1.5 h-1.5 bg-black rounded-full mr-2 md:mr-3" />
@@ -122,6 +132,7 @@ const Consolation = () => {
           </div>
         </div>
 
+        {/* 결과 페이지 이동 버튼 */}
         <button
           type="button"
           onClick={handleResultClick}

@@ -1,12 +1,12 @@
 /**
  * SecretForestWrite.jsx
  *
- * 익명 대나무숲에 새 글을 작성하는 페이지입니다.
- * 사용자는 제목, 내용, 해시태그를 입력한 뒤 Firestore에 게시글을 등록할 수 있습니다.
+ * 익명 대나무숲에 새 글을 작성하는 페이지임.
+ * 사용자는 제목, 내용, 해시태그를 입력한 뒤 Firestore에 게시글을 등록할 수 있음.
  *
- * - Firebase Auth: 로그인 여부 확인
- * - Firestore: secret_forest_list 컬렉션에 게시글 저장
- * - 금지어 필터링: 부적절한 표현이 포함된 글 등록 제한
+ * - Firebase Auth: 로그인 여부 확인함.
+ * - Firestore: secret_forest_list 컬렉션에 게시글 저장함.
+ * - 금지어 필터링: 부적절한 표현이 포함된 글 등록 제한함.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -15,16 +15,20 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
+// 사용자가 글 작성 시 선택할 수 있는 태그 목록 생성.
 const TAG_OPTIONS = ['#인간관계', '#학업', '#면접', '#취업', '#기타'];
 
+// 게시글 제목과 내용에서 제한할 금지어 목록 생성.
 const BANNED_WORDS = [
   '자살', '죽고 싶다', '죽고싶다', '죽을래', '죽을래요', '죽을 것 같다', '죽을 것 같아', '죽을 것 같아요', '씨발', '시발', '개새끼', '미친놈', '병신',];
 
+// 금지어 비교를 위해 입력값의 공백을 제거하고 소문자로 변환함.
 const normalizeTextForFilter = (text) =>
   String(text ?? '')
     .replace(/\s+/g, '')
     .toLowerCase();
 
+// 제목과 내용에 금지어가 포함되어 있는지 확인함.
 const hasBannedWord = (...texts) => {
   const normalizedTexts = texts.map(normalizeTextForFilter);
 
@@ -35,6 +39,7 @@ const hasBannedWord = (...texts) => {
   });
 };
 
+// 익명 대나무숲 글쓰기 페이지 컴포넌트 생성.
 const SecretForestWrite = () => {
   const navigate = useNavigate();
 
@@ -43,7 +48,7 @@ const SecretForestWrite = () => {
   const [selectedTags, setSelectedTags] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 로그인하지 않은 사용자는 글 작성 페이지에 접근하지 못하도록 처리한다.
+  // 로그인하지 않은 사용자는 글 작성 페이지에 접근하지 못하도록 처리함.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -57,6 +62,7 @@ const SecretForestWrite = () => {
     return unsubscribe;
   }, [navigate]);
 
+  // 태그 버튼 클릭 시 선택 상태를 추가하거나 해제함.
   const handleTagClick = (tag) => {
     setSelectedTags((prevTags) => {
       if (prevTags.includes(tag)) {
@@ -67,6 +73,7 @@ const SecretForestWrite = () => {
     });
   };
 
+  // 글 등록 버튼 클릭 시 입력값 검증 후 Firestore에 게시글을 저장함.
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -77,16 +84,19 @@ const SecretForestWrite = () => {
     const tagsToSave = selectedTags.length > 0 ? selectedTags : ['#기타'];
     const user = auth.currentUser;
 
+    // 제목과 내용이 모두 입력되었는지 확인함.
     if (!trimmedTitle || !trimmedContent) {
       alert('제목과 내용을 모두 입력해 주세요.');
       return;
     }
 
+    // 제목과 내용에 금지어가 포함되어 있는지 확인함.
     if (hasBannedWord(trimmedTitle, trimmedContent)) {
       alert('따뜻한 공간을 위해 정돈된 언어를 사용해 주세요.');
       return;
     }
 
+    // 글 등록 시점에 로그인 상태가 유지되고 있는지 다시 확인함.
     if (!user) {
       alert('로그인이 필요한 서비스입니다.');
       navigate('/login', { replace: true });
@@ -96,6 +106,7 @@ const SecretForestWrite = () => {
     try {
       setIsSubmitting(true);
 
+      // Firestore secret_forest_list 컬렉션에 새 게시글 문서를 생성함.
       await addDoc(collection(db, 'secret_forest_list'), {
         uid: user.uid,
         author: '익명',
@@ -105,6 +116,7 @@ const SecretForestWrite = () => {
         tags: tagsToSave,
         createdAt: serverTimestamp(),
         reportCount: 0,
+        hugCount: 0,
       });
 
       alert('글이 성공적으로 등록되었습니다.');
@@ -117,6 +129,7 @@ const SecretForestWrite = () => {
     }
   };
 
+  // 익명 대나무숲 글쓰기 페이지 전체 UI를 렌더링함.
   return (
     <main className="w-full max-w-4xl mx-auto px-4 pt-6 pb-8 sm:px-6 sm:pt-10 sm:pb-12">
       <section className="w-full">

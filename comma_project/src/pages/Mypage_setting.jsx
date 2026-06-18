@@ -1,12 +1,12 @@
 /**
  * MypageSetting.jsx
  *
- * 쉼표 웹서비스의 계정 및 보안 설정 페이지입니다.
- * 사용자는 프로필 이미지, 활동 닉네임, 비밀번호를 변경할 수 있습니다.
+ * 쉼표 웹서비스의 계정 및 보안 설정 페이지임.
+ * 사용자는 프로필 이미지, 활동 닉네임, 비밀번호를 변경할 수 있음.
  *
- * - Firebase Auth: 닉네임, 프로필 이미지, 비밀번호 변경
- * - Firestore: users 컬렉션의 사용자 정보 동기화
- * - 비밀번호 변경: 현재 비밀번호로 재인증 후 변경
+ * - Firebase Auth: 닉네임, 프로필 이미지, 비밀번호 변경 처리함.
+ * - Firestore: users 컬렉션의 사용자 정보 동기화함.
+ * - 비밀번호 변경: 현재 비밀번호로 재인증 후 변경함.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -29,8 +29,10 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
+// 프로필 이미지 최대 용량 기준값 생성.
 const MAX_PROFILE_IMAGE_SIZE = 500 * 1024;
 
+// 닉네임 중복 여부를 Firestore users 컬렉션에서 확인함.
 const checkNicknameAvailable = async (nickname, currentUserId) => {
   const usersRef = collection(db, 'users');
   const nicknameQuery = query(usersRef, where('nickname', '==', nickname));
@@ -39,6 +41,7 @@ const checkNicknameAvailable = async (nickname, currentUserId) => {
   return querySnapshot.docs.every((userDoc) => userDoc.id === currentUserId);
 };
 
+// 계정 및 보안 설정 화면 컴포넌트 생성.
 const MypageSetting = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
@@ -54,7 +57,7 @@ const MypageSetting = () => {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  // 로그인 상태를 확인하고, 기존 프로필 정보를 입력 폼에 반영한다.
+  // 로그인 상태를 확인하고 기존 프로필 정보를 입력 폼에 반영함.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (!currentUser) {
@@ -71,7 +74,7 @@ const MypageSetting = () => {
     return unsubscribe;
   }, [navigate]);
 
-  // 선택한 이미지 파일을 Base64 미리보기 데이터로 변환한다.
+  // 선택한 이미지 파일을 검증하고 Base64 미리보기 데이터로 변환함.
   const handleImageChange = (event) => {
     const file = event.target.files?.[0];
 
@@ -96,6 +99,7 @@ const MypageSetting = () => {
     reader.readAsDataURL(file);
   };
 
+  // 비밀번호 입력값과 오류 메시지를 초기화함.
   const resetPasswordInputs = () => {
     setCurrentPassword('');
     setNewPassword('');
@@ -103,13 +107,14 @@ const MypageSetting = () => {
     setPasswordError('');
   };
 
-  // 비밀번호 변경 시 현재 비밀번호로 재인증한 뒤 새 비밀번호를 저장한다.
+  // 비밀번호 변경 전 현재 비밀번호로 사용자를 재인증함.
   const reauthenticateAndUpdatePassword = async () => {
     const credential = EmailAuthProvider.credential(user.email, currentPassword);
     await reauthenticateWithCredential(user, credential);
     await updatePassword(user, newPassword);
   };
 
+  // 저장 버튼 클릭 시 닉네임, 프로필 이미지, 비밀번호 변경을 처리함.
   const handleSave = async (event) => {
     event.preventDefault();
 
@@ -121,6 +126,7 @@ const MypageSetting = () => {
 
     setPasswordError('');
 
+    // 닉네임과 비밀번호 입력값의 유효성을 검사함.
     if (!trimmedNickname) {
       alert('닉네임을 입력해 주세요.');
       return;
@@ -154,6 +160,7 @@ const MypageSetting = () => {
       const profileUpdates = {};
       const firestoreUpdates = { updatedAt: serverTimestamp() };
 
+      // 닉네임이 변경된 경우 중복 여부를 확인한 뒤 업데이트값에 추가함.
       if (trimmedNickname !== user.displayName) {
         const isNicknameAvailable = await checkNicknameAvailable(trimmedNickname, user.uid);
 
@@ -166,23 +173,28 @@ const MypageSetting = () => {
         firestoreUpdates.nickname = trimmedNickname;
       }
 
+      // 프로필 이미지가 변경된 경우 업데이트값에 추가함.
       if (profileImage !== user.photoURL) {
         profileUpdates.photoURL = profileImage;
         firestoreUpdates.profileImage = profileImage;
       }
 
+      // 비밀번호 변경 요청이 있는 경우 재인증 후 비밀번호를 변경함.
       if (isPasswordChangeRequested) {
         await reauthenticateAndUpdatePassword();
       }
 
+      // 변경된 프로필 정보가 있을 경우 Firebase Auth에 반영함.
       if (Object.keys(profileUpdates).length > 0) {
         await updateProfile(user, profileUpdates);
       }
 
+      // 변경된 사용자 정보가 있을 경우 Firestore users 문서에 반영함.
       if (Object.keys(firestoreUpdates).length > 1) {
         await updateDoc(doc(db, 'users', user.uid), firestoreUpdates);
       }
 
+      // 비밀번호, 닉네임, 프로필 이미지 모두 변경되지 않은 경우 안내함.
       if (!isPasswordChangeRequested && Object.keys(profileUpdates).length === 0) {
         alert('변경된 내용이 없습니다.');
         return;
@@ -194,6 +206,7 @@ const MypageSetting = () => {
     } catch (error) {
       console.error('계정 업데이트 실패:', error);
 
+      // Firebase Auth 오류 유형에 따라 사용자 안내 메시지를 분기함.
       if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         alert('현재 비밀번호가 틀립니다. 다시 입력해주세요.');
       } else if (error.code === 'auth/requires-recent-login') {
@@ -207,6 +220,7 @@ const MypageSetting = () => {
     }
   };
 
+  // 계정 및 보안 설정 UI를 렌더링함.
   return (
     <main className="w-full max-w-3xl mx-auto pt-10 md:pt-16 pb-20 px-4">
       <button
